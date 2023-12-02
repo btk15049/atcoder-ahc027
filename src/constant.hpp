@@ -1,11 +1,14 @@
-/// @brief 箱の個数
-constexpr int N = 200;
+/// @brief 一辺の長さの上限
+constexpr int N_UB = 40;
 
-/// @brief 山の数
-constexpr int M = 10;
+/// @brief 一辺の長さの下限
+constexpr int N_LB = 20;
+
+/// @brief 汚れやすさの上限
+constexpr int D_UB = 1000;
 
 /// @brief 操作回数の上限
-constexpr int K = 5000;
+constexpr int L_MAX = 100000;
 
 
 constexpr double T_START =

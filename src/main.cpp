@@ -13,201 +13,122 @@
 // clang-format on
 
 
-using pile_type  = vector<int>;
-using piles_type = vector<pile_type>;
+int N;
+int D[N_UB * N_UB];
+Cell cell[N_UB * N_UB];
+vector<vector<int>> g;
 
-piles_type piles;
+int64_t d_sum = 0;
 
-struct Pos {
-    int pile;
-    int i; // 下からいくつか
-};
+struct Score {
+    // 未訪問のマスに対する係数
+    int64_t xc = 0;
+    // 1 回訪問したマスに対する係数
+    int64_t yc = 0;
 
-struct Board {
-    piles_type piles;
-    Pos pos[N];
+    inline int64_t f(int l) const { return l * (l + int64_t(1)); }
 
-    Board(piles_type piles) : piles(piles) {
-        for (int i = 0; i < M; ++i) {
-            for (int j = 0; j < N / M; ++j) {
-                pos[piles[i][j]] = {i, j};
-            }
-        }
+    int64_t z = 0;
+    inline void add_z(int l, int64_t d) { z += d * f(l); }
+    inline void sub_z(int l, int64_t d) { z -= d * f(l); }
+
+    inline double val(int l, double c_x) const {
+        return (c_x * xc * f(l) + yc * f(l - 1) + z) / (2.0 * l);
     }
-
-    int head(int pile) const { return piles[pile].back(); }
-};
-
-/// @return costs
-int move_piles(Board& b, int from, int i, int to) {
-    // add p[from][i:] back of p[to]
-    auto& from_pile = b.piles[from];
-    auto& to_pile   = b.piles[to];
-    int len         = from_pile.size() - i;
-    int cost        = len + 1;
-    if (from == to) {
-        return cost;
-    }
-    to_pile.insert(to_pile.end(), from_pile.begin() + i, from_pile.end());
-    from_pile.erase(from_pile.begin() + i, from_pile.end());
-    for (int j = 0; j < len; ++j) {
-        b.pos[to_pile[to_pile.size() - len + j]].pile = to;
-        b.pos[to_pile[to_pile.size() - len + j]].i = to_pile.size() - len + j;
-    }
-
-    return cost;
-}
-
-/// @return costs
-int move_piles(Board& b, int num, int to) {
-    auto from = b.pos[num].pile;
-    auto i    = b.pos[num].i;
-    return move_piles(b, from, i, to);
-}
-
-void pop(Board& b, int v) {
-    auto& pos = b.pos[v];
-    assert(b.head(pos.pile) == v);
-    b.piles[pos.pile].pop_back();
-    pos.i = -1;
-}
-
-struct Result {
-    int cost = 0;
-    vector<pair<int, int>> commands;
-
-    void move_commmand(Board& b, int v, int to) {
-        cost += move_piles(b, v, to);
-        commands.emplace_back(v, to);
-    }
-
-    void harvest_command(Board& b, int v) {
-        pop(b, v);
-        commands.emplace_back(v, -1);
-    }
-
-    int size() const { return commands.size(); }
-    int actual_score() const { return 10000 - cost; }
 };
 
 struct State {
-    vector<pair<int, int>> order;
-    Result result;
+    vector<int16_t> seq;
+    Score score;
 
-    State getCopy() const {
-        State ret;
-        ret.order = order;
-        return ret;
+    vector<int> visited_count;
+    vector<pair<int, int>> visited_first_last;
+    State() {
+        seq.clear();
+        score    = Score();
+        score.xc = d_sum;
+        visited_count.resize(N * N);
+        visited_first_last.resize(N * N);
     }
+
+    void sync_score() {
+        score    = Score();
+        score.xc = d_sum;
+        fill(visited_count.begin(), visited_count.end(), 0);
+        fill(visited_first_last.begin(), visited_first_last.end(),
+             make_pair(-1, -1));
+
+        set<int> multiple_visited;
+
+        for (size_t i = 0; i < seq.size(); i++) {
+            const int v = seq[i];
+
+            // auto& first = visited_first_last[v].first;
+            auto& last = visited_first_last[v].second;
+            switch (visited_count[v]) {
+                case 0:
+                    score.xc -= D[v];
+                    score.yc += D[v];
+                    break;
+                case 1:
+                    score.yc -= D[v];
+                    assert(last != -1);
+                    score.add_z(i - last - 1, D[v]);
+                    multiple_visited.insert(v);
+                    break;
+                default:
+                    assert(last != -1);
+                    score.add_z(i - last - 1, D[v]);
+                    break;
+            }
+            visited_count[v]++;
+            if (visited_first_last[v].first == -1) {
+                visited_first_last[v].first = i;
+            }
+            visited_first_last[v].second = i;
+        }
+
+        // cerr << score.xc << " " << score.yc << " " << score.z << endl;
+
+        for (int v : multiple_visited) {
+            const auto [first, last] = visited_first_last[v];
+            score.add_z((seq.size() - last - 1) + (first - 1), D[v]);
+        }
+    }
+
+    inline void add_back(int v) { seq.push_back(v); }
 };
 
-Result simulate(piles_type piles, vector<pair<int, int>> order) {
-    Board board(piles);
-    Result ret;
-    int cur = 0;
-    for (auto& p : order) {
-        while (cur < N && board.head(board.pos[cur].pile) == cur) {
-            ret.harvest_command(board, cur);
-            cur++;
-        }
-
-        if (board.pos[p.first].i != -1) {
-            if (board.head(board.pos[p.first].pile) != p.first) {
-                int above = board.piles[board.pos[p.first].pile]
-                                       [board.pos[p.first].i + 1];
-                ret.move_commmand(board, above, p.second);
-            }
-        }
-
-        while (cur < N && board.head(board.pos[cur].pile) == cur) {
-            ret.harvest_command(board, cur);
-            cur++;
-        }
+void dfs(State& state, int v) {
+    static vector<int> visited(0);
+    if (visited.empty()) {
+        visited.resize(N * N, 0);
     }
-    if (cur < N) {
-        ret.cost = 10000000 - cur;
-        ret.commands.clear();
+    visited[v] = 1;
+    state.add_back(v);
+    for (int u : g[v]) {
+        if (visited[u]) continue;
+        dfs(state, u);
+        state.add_back(v);
     }
-
-    return ret;
 }
 
-State change_pile(State& next) {
-    int i                = xorshift::getInt(N);
-    int b                = xorshift::getInt(M);
-    next.order[i].second = b;
-    return next;
-}
-
-State rotate_order(State& next) {
-    int i        = xorshift::getInt(N - 2);
-    int range_bg = i + 2;
-    int range_ed = min(i + 5, N);
-    int j        = xorshift::getInt(range_ed - range_bg) + range_bg;
-    int k        = xorshift::getInt(j - i) + i;
-    // rotate to [i,k], [k+1,j] => [k+1,j], [i,k]
-    reverse(next.order.begin() + i, next.order.begin() + k + 1);
-    reverse(next.order.begin() + k + 1, next.order.begin() + j + 1);
-    reverse(next.order.begin() + i, next.order.begin() + j + 1);
-
-
-    return next;
-}
-
-Result solve(piles_type input) {
-    // 初期解
+State sample() {
     State state;
-    state.order.clear();
-    for (int i = 0; i < N; ++i) {
-        state.order.emplace_back(i, xorshift::getInt(M));
-    }
-    state.result = simulate(input, state.order);
-
-    for (scheduler::Scheduler<1900> scheduler; scheduler.update();) {
-        auto next = state.getCopy();
-
-        {
-            double r = xorshift::getDouble();
-
-            if (r < 1) {
-                change_pile(next);
-            }
-            else {
-                rotate_order(next);
-            }
-        }
-
-        next.result = simulate(input, next.order);
-
-        bool ok = false;
-
-        int score     = state.result.actual_score();
-        int new_score = next.result.actual_score();
-
-        if (score < 0) {
-            ok |= score < new_score;
-        }
-        else {
-            double r = xorshift::getDouble();
-            double t = calc_temperature(scheduler.progress, scheduler.limit,
-                                        T_START, T_END);
-            ok |= r < calc_probability(score, new_score, t);
-        }
-
-        if (ok) {
-            state = next;
-            // DBG("update: " << state.result.actual_score());
-        }
-    }
-
-    return state.result;
+    dfs(state, 0);
+    return state;
 }
 
 int main() {
-    auto i   = input();
-    auto ret = solve(i);
-    output(ret.commands);
-    cerr << "cost: " << ret.cost << endl;
-    cerr << "score: " << ret.actual_score() << endl;
+    cerr << fixed << setprecision(5);
+    N = input(g, D, cell);
+    for (int i = 0; i < N * N; i++) {
+        d_sum += D[i];
+    }
+    cerr << "N: " << N << endl;
+    auto ret = sample();
+    ret.sync_score();
+    cerr << "score: " << ret.score.val(ret.seq.size() - 1, 1e10) << endl;
+    output(ret.seq, cell);
     return 0;
 }

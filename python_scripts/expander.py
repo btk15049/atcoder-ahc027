@@ -29,7 +29,7 @@ def expand_includes(src_path):
 
 @click.command()
 @click.argument("src_path", type=click.Path(exists=True))
-@click.argument("dst_path", type=click.Path())
+@click.argument("dst_path", type=click.Path(exists=False))
 def main(src_path, dst_path):
     src_path = Path(src_path)
     dst_path = Path(dst_path)
