@@ -33,7 +33,7 @@ struct Score {
     inline void sub_z(int l, int64_t d) { z -= d * f(l); }
 
     inline double calc_length_penalty(int l) const {
-        const double length_threshold = N * N * 4.0;
+        const double length_threshold = N * N * LENGTH_THRESHOLD;
         return l > length_threshold ? (l - length_threshold) / length_threshold
                                     : 0.0;
     }
@@ -409,10 +409,15 @@ State improve(State s) {
 
 
         double c_x                 = 1 + (1000 - 1) * progress;
-        const double c_l           = 1e7;
+        const double c_l           = LENGTH_PENALTY_COEFFICIENT;
         const double current_score = s.score.val(s.seq.size() - 1, c_x, c_l);
         const double next_score    = t.score.val(t.seq.size() - 1, c_x, c_l);
-        if (next_score <= current_score) {
+        const double temperture =
+            calc_temperature(timer.progress, timer.limit, T_START, T_END);
+        const double prob =
+            calc_probability(next_score, current_score, temperture);
+        const double r = xorshift::getDouble();
+        if (r < prob) {
             s.copy_from(t);
             // cerr << "update: " << next_score << "(" << progress << ")"
             //      << " " << s.seq.size() << endl;
@@ -429,6 +434,49 @@ State improve(State s) {
     return s;
 }
 
+void fix_unreachable(State& s) {
+    static vector<int> pos[N_UB * N_UB];
+    for (int i = 0; i < N * N; i++) {
+        pos[i].clear();
+    }
+    vector<int> unreached;
+    for (int i = 0; i < (int)s.seq.size(); i++) {
+        pos[s.seq[i]].push_back(i);
+    }
+    for (int i = 0; i < N * N; i++) {
+        if (pos[i].empty()) {
+            unreached.push_back(i);
+        }
+    }
+
+    while (!unreached.empty()) {
+        cerr << "need to fix: " << unreached.size() << endl;
+        xorshift::shuffle(unreached);
+        for (auto v : unreached) {
+            xorshift::shuffle(g[v]);
+            bool connected = false;
+            for (int u : g[v]) {
+                if (pos[u].empty()) continue;
+
+                int i = pos[u][xorshift::getInt(pos[u].size())];
+                while (s.seq[i] != u) {
+                    i++;
+                    assert(i < N * N);
+                }
+                s.seq.insert(s.seq.begin() + i + 1, u);
+                s.seq.insert(s.seq.begin() + i + 1, v);
+                connected = true;
+            }
+            if (connected) {
+                auto ptr = find(unreached.begin(), unreached.end(), v);
+                swap(*ptr, unreached.back());
+                unreached.pop_back();
+                break;
+            }
+        }
+    }
+}
+
 int main() {
     cerr << fixed << setprecision(5);
     N = input(g, D, cell);
@@ -437,7 +485,7 @@ int main() {
 
     auto first = build_first_state();
     auto ret   = improve(first);
-
+    fix_unreachable(ret);
     ret.sync_score();
 
     output(ret.seq, cell);
