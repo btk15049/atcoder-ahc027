@@ -14,6 +14,11 @@ namespace {
         int r;
         int c;
         int id;
+        string to_string() const {
+            stringstream ss;
+            ss << "(" << r << ", " << c << ")";
+            return ss.str();
+        }
     };
 
     /// @return N
