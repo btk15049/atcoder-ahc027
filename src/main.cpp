@@ -310,12 +310,14 @@ namespace transiton_arm {
     struct Counter {
         int tries    = 0;
         int accepted = 0;
+        double score = 0;
     } counter[100]; // 100 個以上遷移があると死ぬ
 
-    void register_transition(OP op, bool accepted) {
+    void register_transition(OP op, bool accepted, double score = 0) {
         auto& c = counter[int(op)];
         c.tries++;
         if (accepted) c.accepted++;
+        c.score += score;
     }
 
     void add_log() {
@@ -325,6 +327,8 @@ namespace transiton_arm {
                          to_string(c.tries) + " tries");
             logger::push("op" + to_string(i + 1),
                          to_string(c.accepted) + " accepted");
+            logger::push("op" + to_string(i + 1),
+                         to_string(c.score) + " point");
         }
     }
 
@@ -336,9 +340,9 @@ bool op1(State& s) {
     // 部分再構築
     const int L = s.seq.size();
     if (L < 2) return false;
-    int len = xorshift::getInt(min(10, L - 1)) + 1;
-    int bg  = xorshift::getInt(L - len);
-    int ed  = bg + len;
+    int len = 1;
+    int bg  = 0;
+    int ed  = 0;
     while (s.seq[bg] == s.seq[ed]) {
         len = xorshift::getInt(min(10, L - 1)) + 1;
         bg  = xorshift::getInt(L - len);
@@ -438,6 +442,7 @@ State improve(State s) {
                     break;
                 default:
                     assert(false);
+                    exit(-1);
             }
         }
 
@@ -459,7 +464,8 @@ State improve(State s) {
             // cerr << t.score.xc << " " << t.score.yc << " " << t.score.z <<
             // endl; cerr << s.score.xc << " " << s.score.yc << " " << s.score.z
             // << endl;
-            transiton_arm::register_transition(op, true);
+            transiton_arm::register_transition(op, true,
+                                               next_score - current_score);
         }
         else {
             transiton_arm::register_transition(op, false);
