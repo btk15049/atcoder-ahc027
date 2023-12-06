@@ -7,6 +7,7 @@
 #include "common/sa.hpp"
 #include "common/time_scheduler.hpp"
 #include "common/xorshift.hpp"
+#include "common/logger.hpp"
 
 #include "constant.hpp"
 #include "io.hpp"
@@ -276,14 +277,16 @@ namespace transiton_arm {
     enum OP {
         OP1, // 部分再構築
         OP2, // 条件付き部分再構築
+        OP3, // 閉路反転
 
         // ここより下は変更しない
         OP_NUM,
     };
 
     constexpr array<pair<OP, int>, OP_NUM> prob = {
-        make_pair(OP::OP1, 600),
-        make_pair(OP::OP2, 400),
+        make_pair(OP::OP1, 800),
+        make_pair(OP::OP2, 100),
+        make_pair(OP::OP3, 100),
     };
 
     static_assert(accumulate(prob.begin(), prob.end(), 0,
@@ -309,29 +312,30 @@ namespace transiton_arm {
         int accepted = 0;
     } counter[100]; // 100 個以上遷移があると死ぬ
 
-    void show_metrics() {
-        for (int i = 0; i < OP_NUM; i++) {
-            auto& c = counter[i];
-            cerr << "op" << i << ": " << c.accepted << " / " << c.tries << " ("
-                 << (c.tries == 0 ? 0.0 : c.accepted / double(c.tries)) << ")"
-                 << endl;
-        }
-    }
-
     void register_transition(OP op, bool accepted) {
         auto& c = counter[int(op)];
         c.tries++;
         if (accepted) c.accepted++;
     }
 
+    void add_log() {
+        for (int i = 0; i < OP_NUM; i++) {
+            auto& c = counter[i];
+            logger::push("op" + to_string(i + 1),
+                         to_string(c.tries) + " tries");
+            logger::push("op" + to_string(i + 1),
+                         to_string(c.accepted) + " accepted");
+        }
+    }
+
     OP choice() { return prob_seq[xorshift::getInt(TABLE_SIZE)]; }
 
 } // namespace transiton_arm
 
-void op1(State& s) {
+bool op1(State& s) {
     // 部分再構築
     const int L = s.seq.size();
-    assert(L >= 2);
+    if (L < 2) return false;
     int len = xorshift::getInt(min(10, L - 1)) + 1;
     int bg  = xorshift::getInt(L - len);
     int ed  = bg + len;
@@ -349,12 +353,13 @@ void op1(State& s) {
     s.seq.erase(s.seq.begin() + bg, s.seq.begin() + ed + 1);
     s.seq.insert(s.seq.begin() + bg, new_path.begin(), new_path.end());
     s.sync_score();
+    return true;
 }
 
-void op2(State& s) {
+bool op2(State& s) {
     // 条件付き部分再構築
     const int L = s.seq.size();
-    assert(L >= 2);
+    if (L < 2) return false;
     int len      = xorshift::getInt(min(10, L - 1)) + 1;
     const int bg = xorshift::getInt(L - len);
     const int ed = bg + len;
@@ -380,31 +385,60 @@ void op2(State& s) {
     s.seq.insert(s.seq.begin() + bg + new_path1.size(), new_path2.begin() + 1,
                  new_path2.end());
     s.sync_score();
+    return true;
+}
+
+bool op3(State& s) {
+    // 閉路反転
+    const int L = s.seq.size();
+    if (L < 2) return false;
+
+    for (int ti = 0; ti < 30; ti++) {
+        const int i = xorshift::getInt(L);
+        int j       = 10;
+        for (; j < L && j < i + N * N / 10; j++) {
+            if (s.seq[i] == s.seq[j]) break;
+        }
+        if (j >= L || s.seq[i] != s.seq[j]) continue;
+        assert(s.seq[i] == s.seq[j]);
+        reverse(s.seq.begin() + i + 1, s.seq.begin() + j);
+
+        s.sync_score();
+        return true;
+    }
+    return false;
 }
 
 State improve(State s) {
-    scheduler::Scheduler<1600> timer;
+    scheduler::Scheduler<1950> timer;
     while (timer.update()) {
         double progress = timer.progress / double(timer.limit);
         // cerr << "progress: " << progress << endl;
 
-        State t                    = s.copy();
-        const transiton_arm::OP op = transiton_arm::choice();
+        State t = s.copy();
+
         // cerr << op << endl;
         // cerr << "L: " << s.seq.size() - 1 << endl;
         // for (int i : s.seq) {
         //     cerr << cell[i].to_string() << " ";
         // }
         // cerr << endl;
-        switch (op) {
-            case transiton_arm::OP::OP1:
-                op1(t);
-                break;
-            case transiton_arm::OP::OP2:
-                op2(t);
-                break;
-            default:
-                assert(false);
+        transiton_arm::OP op;
+        for (bool ok = false; !ok;) {
+            op = transiton_arm::choice();
+            switch (op) {
+                case transiton_arm::OP::OP1:
+                    ok = op1(t);
+                    break;
+                case transiton_arm::OP::OP2:
+                    ok = op2(t);
+                    break;
+                case transiton_arm::OP::OP3:
+                    ok = op3(t);
+                    break;
+                default:
+                    assert(false);
+            }
         }
 
 
@@ -465,6 +499,7 @@ void fix_unreachable(State& s) {
                 }
                 s.seq.insert(s.seq.begin() + i + 1, u);
                 s.seq.insert(s.seq.begin() + i + 1, v);
+                pos[v].push_back(i + 1);
                 connected = true;
             }
             if (connected) {
@@ -477,24 +512,59 @@ void fix_unreachable(State& s) {
     }
 }
 
+void dfs(State& state, int v, bool first = true) {
+    static vector<int> visited;
+    if (first) {
+        visited.resize(N * N);
+        fill(visited.begin(), visited.end(), 0);
+    }
+    visited[v] = 1;
+    state.add_back(v);
+    // xorshift::shuffle(g[v]);
+    for (int u : g[v]) {
+        if (visited[u]) continue;
+        dfs(state, u, false);
+        state.add_back(v);
+    }
+}
+
+State sample() {
+    State best;
+    best.score.z = 1e18;
+    for (int i = 0; i < 1; i++) {
+        State state;
+        dfs(state, 0);
+        state.sync_score();
+        if (state.score.val(state.seq.size() - 1, 0, 0)
+            < best.score.val(state.seq.size() - 1, 0, 0)) {
+            best.copy_from(state);
+            // cerr << "update: " << best.score.val(state.seq.size() - 1, 0, 0)
+            //      << endl;
+        }
+    }
+    // exit(-1);
+    return best;
+}
+
 int main() {
     cerr << fixed << setprecision(5);
     N = input(g, D, cell);
     init();
 
+    logger::push("N", int64_t(N));
 
-    auto first = build_first_state();
+    // auto first = build_first_state();
+    auto first = sample();
     auto ret   = improve(first);
     fix_unreachable(ret);
     ret.sync_score();
 
     output(ret.seq, cell);
-    cerr << "N: " << N << endl;
-    cerr << "L: " << ret.seq.size() - 1 << endl;
-    cerr << "final score: " << ret.score.val(ret.seq.size() - 1, 1e10, 0)
-         << endl;
-    cerr << "unreachead: " << ret.score.xc << endl;
-    transiton_arm::show_metrics();
+    logger::push("L", int64_t(ret.seq.size() - 1));
+
+    logger::push("score", ret.score.val(ret.seq.size() - 1, 1e10, 0));
+    transiton_arm::add_log();
+    logger::flush();
     if (ret.score.xc > 0) {
         exit(-1);
     }
