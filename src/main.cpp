@@ -47,47 +47,19 @@ struct Score {
     }
 };
 
-// 差分計算用構造体
-struct F {
-    int64_t a = 0;
-    int64_t b = 0;
-    int64_t c = 0;
-};
+template <typename Container>
+Score build_score(Container seq) {
+    auto score          = Score();
+    score.len           = seq.size() - 1;
+    score.never_visited = d_sum;
 
-// 差分計算用構造体
-struct ScoreDiffManager {
-    // 未訪問のマスにおける汚れの合計
-    int64_t xc = 0;
-    // 1 回訪問したマスにおける汚れの合計
-    int64_t yc = 0;
-
-    // 複数回現れる項の管理
-    vector<F> fs;
-};
-
-
-struct State;
-
-struct State {
-    vector<int16_t> seq;
-    Score score;
-    vector<int> visited_count;
-    vector<pair<int, int>> visited_first_last;
-    State() {
-        seq.clear();
+    static vector<int> visited_count;
+    static vector<pair<int, int>> visited_first_last;
         visited_count.resize(N * N);
         visited_first_last.resize(N * N);
-    }
-
-
-    void sync_score() {
-        score               = Score();
-        score.len           = seq.size() - 1;
-        score.never_visited = d_sum;
         fill(visited_count.begin(), visited_count.end(), 0);
         fill(visited_first_last.begin(), visited_first_last.end(),
              make_pair(-1, -1));
-
         static vector<int> multiple_visited;
         multiple_visited.clear();
         for (size_t i = 0; i < seq.size(); i++) {
@@ -122,27 +94,51 @@ struct State {
 
         for (int v : multiple_visited) {
             const auto [first, last] = visited_first_last[v];
-            score.add_multiple_visited((seq.size() - last - 1) + (first - 1),
-                                       D[v]);
+        score.add_multiple_visited((seq.size() - last - 1) + (first - 1), D[v]);
         }
-    }
+    return score;
+}
+
+// 差分計算用構造体
+struct F {
+    int64_t a = 0;
+    int64_t b = 0;
+    int64_t c = 0;
+};
+
+// 差分計算用構造体
+struct ScoreDiffManager {
+    // 未訪問のマスにおける汚れの合計
+    int64_t xc = 0;
+    // 1 回訪問したマスにおける汚れの合計
+    int64_t yc = 0;
+
+    // 複数回現れる項の管理
+    vector<F> fs;
+};
+
+
+struct State;
+
+struct State {
+    vector<int16_t> seq;
+    Score score;
+    State() { seq.clear(); }
+
+    void sync_score() { score = build_score(seq); }
 
     inline void add_back(int v) { seq.push_back(v); }
 
     State copy() const {
         State ret;
-        ret.seq                = seq;
-        ret.score              = score;
-        ret.visited_count      = visited_count;
-        ret.visited_first_last = visited_first_last;
+        ret.seq   = seq;
+        ret.score = score;
         return ret;
     }
 
     void copy_from(const State& s) {
-        seq                = s.seq;
-        score              = s.score;
-        visited_count      = s.visited_count;
-        visited_first_last = s.visited_first_last;
+        seq   = s.seq;
+        score = s.score;
     }
 };
 
