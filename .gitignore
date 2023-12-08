@@ -1,7 +1,7 @@
 in/
 out/
 log/
-
+*.db
 # for atcoder
 *.svg
 official-tools/

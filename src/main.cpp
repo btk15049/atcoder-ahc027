@@ -434,15 +434,16 @@ namespace transiton_arm {
         OP1, // 部分再構築
         OP2, // 条件付き部分再構築
         OP3, // 閉路反転
-
+        OP4, // 閉路追加
+        OP5, // 閉路削除
         // ここより下は変更しない
         OP_NUM,
     };
 
     constexpr array<pair<OP, int>, OP_NUM> prob = {
-        make_pair(OP::OP1, 800),
-        make_pair(OP::OP2, 100),
-        make_pair(OP::OP3, 100),
+        make_pair(OP::OP1, OP1_P), make_pair(OP::OP2, OP2_P),
+        make_pair(OP::OP3, OP3_P), make_pair(OP::OP4, OP4_P),
+        make_pair(OP::OP5, OP5_P),
     };
 
     static_assert(accumulate(prob.begin(), prob.end(), 0,
@@ -648,6 +649,59 @@ optional<ModifiedState> op3(const State& s) {
     return nullopt;
 }
 
+optional<ModifiedState> op4(const State& s) {
+    // cerr << "op4" << endl;
+    // 閉路構築
+    const int p = xorshift::getInt(s.seq.size() - 1) + 1;
+    int v       = s.seq[p];
+    while (v == s.seq[p] || manhattan(v, s.seq[p]) > 5) {
+        v = xorshift::getInt(N * N);
+    }
+
+    auto new_path = find_path(s.seq[p], v);
+    assert(new_path.front() == s.seq[p]);
+    assert(new_path.back() == v);
+    const auto new_path2 = find_path(v, s.seq[p]);
+    assert(new_path2.front() == v);
+    assert(new_path2.back() == s.seq[p]);
+    new_path.insert(new_path.end(), new_path2.begin() + 1, new_path2.end() - 1);
+    int bg = p;
+    int ed = p - 1;
+    ModifiedState ret;
+    ret.state      = &s;
+    ret.bg         = bg;
+    ret.ed         = ed;
+    ret.new_subseq = new_path;
+
+    ret.sync_score();
+    return ret;
+}
+
+optional<ModifiedState> op5(const State& s) {
+    // 閉路削除
+    const int L = s.seq.size();
+    if (L < 2) return nullopt;
+
+    for (int ti = 0; ti < 30; ti++) {
+        int bg = xorshift::getInt(L);
+        int ed = bg + 10;
+        for (; ed < L && ed < bg + N * 5; ed++) {
+            if (s.seq[bg] == s.seq[ed]) break;
+        }
+        if (ed >= L || s.seq[bg] != s.seq[ed]) continue;
+        assert(s.seq[bg] == s.seq[ed]);
+        ModifiedState ret;
+        ret.state      = &s;
+        ret.bg         = bg + 1;
+        ret.ed         = ed;
+        ret.new_subseq = vector<int16_t>();
+
+        ret.sync_score();
+        return ret;
+    }
+    return nullopt;
+}
+
 State improve(State s) {
     scheduler::Scheduler<1950> timer;
     // output(s.seq, cell);
@@ -674,6 +728,12 @@ State improve(State s) {
                     break;
                 case transiton_arm::OP::OP3:
                     t = op3(s);
+                    break;
+                case transiton_arm::OP::OP4:
+                    t = op4(s);
+                    break;
+                case transiton_arm::OP::OP5:
+                    t = op5(s);
                     break;
                 default:
                     assert(false);
@@ -729,6 +789,7 @@ State improve(State s) {
     }
     return s;
 }
+
 
 void fix_unreachable(State& s) {
     static vector<int> pos[N_UB * N_UB];

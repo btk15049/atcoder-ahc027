@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import sys
 from time import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 from joblib import Parallel, delayed
 import math
 import last_score
@@ -107,6 +107,17 @@ def parse_score(result: ExecuteResult) -> Optional[float]:
     # to float
     return float(parse_value(result, "score"))
 
+def parse_scores(results: List[ExecuteResult]) -> List[float]:
+    scores = []
+    for result in results:
+        score = parse_score(result)
+        if score is None:
+            print(f"{result.log_file} のパースに失敗しました。")
+            scores.append(10)
+        else:
+            scores.append(math.log2(score))
+    return scores
+
 if __name__ == "__main__":
     repo_root_path = Path(__file__).resolve().parent.parent
     results = execute_all(
@@ -117,18 +128,7 @@ if __name__ == "__main__":
         timeout=15,
         parallelism=10,
     )
-    scores = []
-    for result in results:
-        if result.is_succeeded:
-            d = {}
-            score = parse_score(result)
-            if score is None:
-                print(f"{result.log_file} のパースに失敗しました。")
-                scores.append(10)
-            else:
-                scores.append(math.log2(score))
-            d["file"] = sys.argv[1] + "/" + result.input_file.name
-            d["score"] = score
+    scores = parse_scores(results)
 
     if len(scores) != 0:
         average = sum(scores) / len(scores)

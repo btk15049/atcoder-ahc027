@@ -29,3 +29,43 @@ constexpr double T_END =
     0.001
 #endif
     ;
+
+constexpr int OP1_P =
+#ifdef PARAM_OP1_P
+    PARAM_OP1_P
+#else
+    600
+#endif
+    ;
+
+constexpr int OP2_P =
+#ifdef PARAM_OP2_P
+    PARAM_OP2_P
+#else
+    100
+#endif
+    ;
+
+constexpr int OP3_P =
+#ifdef PARAM_OP3_P
+    PARAM_OP3_P
+#else
+    100
+#endif
+    ;
+
+constexpr int OP4_P =
+#ifdef PARAM_OP4_P
+    PARAM_OP4_P
+#else
+    100
+#endif
+    ;
+
+constexpr int OP5_P =
+#ifdef PARAM_OP5_P
+    PARAM_OP5_P
+#else
+    100
+#endif
+    ;
