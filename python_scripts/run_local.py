@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 from joblib import Parallel, delayed
 import math
+import last_score
 
 
 @dataclass
@@ -130,5 +131,9 @@ if __name__ == "__main__":
             d["score"] = score
 
     if len(scores) != 0:
-        print(f"Average: {sum(scores) / len(scores)}")
+        average = sum(scores) / len(scores)
+        print(f"Average: {last_score.LAST_LOG_SCORE} -> {average}")
+        diff = last_score.LAST_LOG_SCORE - average
+        print(f"Estimated Score: {last_score.LAST_REL_SCORE} -> {last_score.LAST_REL_SCORE * (2 ** diff)}")
+
     print(f"Valid Cases: {len(scores)}")
