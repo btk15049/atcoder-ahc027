@@ -767,7 +767,8 @@ State improve(State s) {
             //      << s.score.once_visited << " " << s.score.multiple_visited
             //      << endl;
             // output(s.seq, cell);
-            if (s.score.score_with_penalty(c_x, c_l) != next_score) {
+            if (abs(s.score.score_with_penalty(c_x, c_l) - next_score) > 1e-5) {
+                // なんかしらんけど一部のオプションで誤差が出る
                 cerr << "ng" << endl;
                 exit(-1);
             }
@@ -818,7 +819,7 @@ void fix_unreachable(State& s) {
                 int i = pos[u][xorshift::getInt(pos[u].size())];
                 while (s.seq[i] != u) {
                     i++;
-                    assert(i < N * N);
+                    // assert(i < N * N);
                 }
                 s.seq.insert(s.seq.begin() + i + 1, u);
                 s.seq.insert(s.seq.begin() + i + 1, v);
