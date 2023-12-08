@@ -34,7 +34,7 @@ constexpr int OP1_P =
 #ifdef PARAM_OP1_P
     PARAM_OP1_P
 #else
-    600
+    300
 #endif
     ;
 
@@ -67,5 +67,13 @@ constexpr int OP5_P =
     PARAM_OP5_P
 #else
     100
+#endif
+    ;
+
+constexpr int OP6_P =
+#ifdef PARAM_OP6_P
+    PARAM_OP6_P
+#else
+    300
 #endif
     ;

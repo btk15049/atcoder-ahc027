@@ -384,12 +384,28 @@ struct ModifiedState {
 namespace for_find_path {
     int visited[N_UB * N_UB];
     int ts = 1;
+    int dist[N_UB * N_UB][N_UB * N_UB];
 
     void init() {
         ts = 1;
         fill(visited, visited + N * N, 0);
+        queue<int> q;
+        for (int i = 0; i < N * N; i++) {
+            fill(dist[i], dist[i] + N * N, N_UB * N_UB);
+            dist[i][i] = 0;
+            q.push(i);
+            while (!q.empty()) {
+                int v = q.front();
+                q.pop();
+                for (int u : g[v]) {
+                    if (dist[i][u] <= dist[i][v] + 1) continue;
+                    dist[i][u] = dist[i][v] + 1;
+                    q.push(u);
+                }
+            }
+        }
     }
-    bool dfs(int v, int goal, vector<int16_t>& path) {
+    inline bool dfs(int v, int goal, vector<int16_t>& path) {
         visited[v] = ts;
         path.push_back(v);
         if (v == goal) return true;
@@ -401,18 +417,41 @@ namespace for_find_path {
         path.pop_back();
         return false;
     }
+
+    inline void shortest_path(int v, int goal, vector<int16_t>& path) {
+        path.push_back(v);
+        while (v != goal) {
+            int min_dist = N_UB * N_UB;
+            int min_v    = -1;
+            xorshift::shuffle(g[v]);
+            for (int u : g[v]) {
+                if (dist[goal][u] < min_dist) {
+                    min_dist = dist[goal][u];
+                    min_v    = u;
+                }
+            }
+            assert(min_v != -1);
+            path.push_back(min_v);
+            v = min_v;
+        }
+    }
 } // namespace for_find_path
 
-vector<int16_t> find_path(int st, int gl) {
+vector<int16_t> find_path(int st, int gl, bool use_shortest_path = false) {
     using namespace for_find_path;
     static vector<int16_t> seq;
     seq.clear();
     ts++;
-    dfs(st, gl, seq);
+    if (use_shortest_path)
+        shortest_path(st, gl, seq);
+    else
+        dfs(st, gl, seq);
     assert(!seq.empty());
 
     return seq;
 }
+
+
 void init() {
     for (int i = 0; i < N * N; i++) {
         d_sum += D[i];
@@ -436,6 +475,7 @@ namespace transiton_arm {
         OP3, // 閉路反転
         OP4, // 閉路追加
         OP5, // 閉路削除
+        OP6, // 部分再構築(最短経路)
         // ここより下は変更しない
         OP_NUM,
     };
@@ -443,7 +483,7 @@ namespace transiton_arm {
     constexpr array<pair<OP, int>, OP_NUM> prob = {
         make_pair(OP::OP1, OP1_P), make_pair(OP::OP2, OP2_P),
         make_pair(OP::OP3, OP3_P), make_pair(OP::OP4, OP4_P),
-        make_pair(OP::OP5, OP5_P),
+        make_pair(OP::OP5, OP5_P), make_pair(OP::OP6, OP6_P),
     };
 
     static_assert(accumulate(prob.begin(), prob.end(), 0,
@@ -498,7 +538,7 @@ namespace transiton_arm {
 
 } // namespace transiton_arm
 
-optional<ModifiedState> op1(const State& s) {
+optional<ModifiedState> op1(const State& s, bool use_shortest_path) {
     // cerr << "op1" << endl;
     // 部分再構築
     const int L = s.seq.size();
@@ -514,7 +554,7 @@ optional<ModifiedState> op1(const State& s) {
     assert(bg < ed);
     assert(bg >= 0);
     assert(ed < L);
-    const auto new_path = find_path(s.seq[bg], s.seq[ed]);
+    const auto new_path = find_path(s.seq[bg], s.seq[ed], use_shortest_path);
     assert(new_path.front() == s.seq[bg]);
     assert(new_path.back() == s.seq[ed]);
     int n_bg = 0;
@@ -543,6 +583,10 @@ optional<ModifiedState> op1(const State& s) {
     ret.sync_score();
     return ret;
 }
+
+optional<ModifiedState> op1(const State& s) { return op1(s, false); }
+
+optional<ModifiedState> op6(const State& s) { return op1(s, true); }
 
 optional<ModifiedState> op2(const State& s) {
     // cerr << "op2" << endl;
@@ -734,6 +778,9 @@ State improve(State s) {
                     break;
                 case transiton_arm::OP::OP5:
                     t = op5(s);
+                    break;
+                case transiton_arm::OP::OP6:
+                    t = op6(s);
                     break;
                 default:
                     assert(false);
