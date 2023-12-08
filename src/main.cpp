@@ -21,14 +21,30 @@ vector<vector<int>> g;
 
 int64_t d_sum = 0;
 
+// 差分計算用構造体
+struct F {
+    int64_t a = 0;
+    int64_t b = 0;
+    inline int64_t calc(int64_t q) { return a * q * q + b * q; }
+};
+
 struct Score {
     int64_t never_visited    = 0;
     int64_t once_visited     = 0;
     int64_t multiple_visited = 0;
+
+    int64_t len = 0;
+    static F fs[L_MAX];
+    static vector<int> pos[N_UB * N_UB];
+
     void add_multiple_visited(int64_t subseq_len, int64_t d) {
         multiple_visited += d * subseq_len * (subseq_len + 1);
     }
-    int64_t len = 0;
+
+    void sub_multiple_visited(int64_t subseq_len, int64_t d) {
+        multiple_visited -= d * subseq_len * (subseq_len + 1);
+    }
+
     inline double calc_length_penalty() const {
         const double length_threshold = N * N * LENGTH_THRESHOLD;
         return len > length_threshold
@@ -46,79 +62,90 @@ struct Score {
                + length_penalty_coef * length_penalty;
     }
 };
+F Score::fs[L_MAX];
+vector<int> Score::pos[N_UB * N_UB];
 
 template <typename Container>
 Score build_score(Container seq) {
     auto score          = Score();
     score.len           = seq.size() - 1;
     score.never_visited = d_sum;
+    for (int i = 0; i < N * N; i++) {
+        Score::pos[i].clear();
+    }
+    static vector<int> multiple_visited;
+    multiple_visited.clear();
+    for (int i = 0; i < (int)seq.size(); i++) {
+        const int v = seq[i];
 
-    static vector<int> visited_count;
-    static vector<pair<int, int>> visited_first_last;
-        visited_count.resize(N * N);
-        visited_first_last.resize(N * N);
-        fill(visited_count.begin(), visited_count.end(), 0);
-        fill(visited_first_last.begin(), visited_first_last.end(),
-             make_pair(-1, -1));
-        static vector<int> multiple_visited;
-        multiple_visited.clear();
-        for (size_t i = 0; i < seq.size(); i++) {
-            const int v = seq[i];
-
-            // auto& first = visited_first_last[v].first;
-            auto& last = visited_first_last[v].second;
-            switch (visited_count[v]) {
-                case 0:
-                    score.never_visited -= D[v];
-                    score.once_visited += D[v];
-                    break;
-                case 1:
-                    score.once_visited -= D[v];
-                    assert(last != -1);
-                    score.add_multiple_visited(i - last - 1, D[v]);
-                    multiple_visited.push_back(v);
-                    break;
-                default:
-                    assert(last != -1);
-                    score.add_multiple_visited(i - last - 1, D[v]);
-                    break;
-            }
-            visited_count[v]++;
-            if (visited_first_last[v].first == -1) {
-                visited_first_last[v].first = i;
-            }
-            visited_first_last[v].second = i;
+        // auto& first = visited_first_last[v].first;
+        switch (Score::pos[v].size()) {
+            case 0:
+                score.never_visited -= D[v];
+                score.once_visited += D[v];
+                break;
+            case 1:
+                score.once_visited -= D[v];
+                score.add_multiple_visited(i - Score::pos[v].back() - 1, D[v]);
+                multiple_visited.push_back(v);
+                break;
+            default:
+                score.add_multiple_visited(i - Score::pos[v].back() - 1, D[v]);
+                break;
         }
+        Score::pos[v].push_back(i);
+        Score::fs[i] = {0, 0};
+    }
 
-        // cerr << score.xc << " " << score.yc << " " << score.z << endl;
+    // cerr << score.xc << " " << score.yc << " " << score.z << endl;
 
-        for (int v : multiple_visited) {
-            const auto [first, last] = visited_first_last[v];
-        score.add_multiple_visited((seq.size() - last - 1) + (first - 1), D[v]);
+    for (int v : multiple_visited) {
+        score.add_multiple_visited((seq.size() - Score::pos[v].back() - 1)
+                                       + (Score::pos[v].front() - 1),
+                                   D[v]);
+    }
+
+
+    for (int v = 0; v < N * N; v++) {
+        if (Score::pos[v].size() >= 2u) {
+            {
+                const int last  = Score::pos[v].back();
+                const int first = Score::pos[v].front();
+                const int l     = (seq.size() - last - 1) + (first - 1);
+
+                const int64_t da = D[v];
+                const int64_t db = 2 * D[v] * l + D[v];
+                Score::fs[0].a += da;
+                Score::fs[0].b += db;
+                Score::fs[first + 1].a -= da;
+                Score::fs[first + 1].b -= db;
+                Score::fs[last + 1].a += da;
+                Score::fs[last + 1].b += db;
+            }
+            for (int i = 1; i < (int)Score::pos[v].size(); i++) {
+                const int p      = Score::pos[v][i];
+                const int q      = Score::pos[v][i - 1];
+                const int l      = p - q - 1;
+                const int64_t da = D[v];
+                const int64_t db = 2 * D[v] * l + D[v];
+                Score::fs[p + 1].a -= da;
+                Score::fs[p + 1].b -= db;
+                Score::fs[q + 1].a += da;
+                Score::fs[q + 1].b += db;
+            }
         }
+    }
+    for (int i = 1; i < (int)seq.size(); i++) {
+        Score::fs[i].a += Score::fs[i - 1].a;
+        Score::fs[i].b += Score::fs[i - 1].b;
+        assert(Score::fs[i].a >= 0);
+        // cerr << "fs: " << i << " " << Score::fs[i].a << " " << Score::fs[i].b
+        //      << endl;
+    }
+
     return score;
 }
 
-// 差分計算用構造体
-struct F {
-    int64_t a = 0;
-    int64_t b = 0;
-    int64_t c = 0;
-};
-
-// 差分計算用構造体
-struct ScoreDiffManager {
-    // 未訪問のマスにおける汚れの合計
-    int64_t xc = 0;
-    // 1 回訪問したマスにおける汚れの合計
-    int64_t yc = 0;
-
-    // 複数回現れる項の管理
-    vector<F> fs;
-};
-
-
-struct State;
 
 struct State {
     vector<int16_t> seq;
@@ -142,12 +169,206 @@ struct State {
     }
 };
 
+namespace for_modified_state {
+    int current_ts = 0;
+    int timestamp[N_UB * N_UB];
+    int visited_count[N_UB * N_UB];
+    vector<int> pos_l[N_UB * N_UB];
+    vector<int> pos_m[N_UB * N_UB];
+    vector<int> pos_r[N_UB * N_UB];
+
+} // namespace for_modified_state
+
+
 struct ModifiedState {
-    State* state;
+    const State* state;
     int bg;
     int ed;
     vector<int16_t> new_subseq;
     Score score;
+
+    int size() const {
+        return state->seq.size() - (ed - bg + 1) + new_subseq.size();
+    }
+
+    int16_t operator[](int i) const {
+        if (i < bg) {
+            return state->seq[i];
+        }
+        else if (i < bg + (int)new_subseq.size()) {
+            return new_subseq[i - bg];
+        }
+        else {
+            return state->seq[i + (ed - bg + 1) - new_subseq.size()];
+        }
+    }
+
+    Score calc_new_score() {
+        const int64_t old_len = state->seq.size() - 1;
+        // cerr << "###################" << endl;
+        const int64_t q = new_subseq.size() - (ed - bg + 1); // 長さの増分
+        const int64_t new_len = old_len + q;
+        // cerr << "bg: " << bg << endl;
+        // cerr << "ed: " << ed << endl;
+        // cerr << "q: " << q << endl;
+
+        // cerr << "old: ";
+        // for (int i = 0; i < (int)state->seq.size(); i++) {
+        //     cerr << state->seq[i] << ",";
+        // }
+        // cerr << endl;
+        // cerr << "new: ";
+        // for (int i = 0; i < (int)size(); i++) {
+        //     cerr << this->operator[](i) << ",";
+        // }
+        // cerr << endl;
+
+        Score score;
+        score.never_visited    = state->score.never_visited;
+        score.once_visited     = state->score.once_visited;
+        score.multiple_visited = state->score.multiple_visited;
+        score.len              = new_len;
+
+        const auto& old_pos = Score::pos;
+
+        using namespace for_modified_state;
+        current_ts++;
+        static vector<int> target_unique;
+        target_unique.clear();
+
+        // 使うやつだけコピー
+        for (int i = bg; i <= ed; i++) {
+            const int v      = state->seq[i];
+            visited_count[v] = old_pos[v].size();
+            if (timestamp[v] != current_ts) {
+                timestamp[v] = current_ts;
+                target_unique.push_back(v);
+                pos_l[v].clear();
+                pos_m[v].clear();
+                pos_r[v].clear();
+            }
+        }
+        for (int i = 0; i < (int)new_subseq.size(); i++) {
+            const int v      = new_subseq[i];
+            visited_count[v] = old_pos[v].size();
+            if (timestamp[v] != current_ts) {
+                timestamp[v] = current_ts;
+                target_unique.push_back(v);
+                pos_l[v].clear();
+                pos_m[v].clear();
+                pos_r[v].clear();
+            }
+            pos_m[v].push_back(bg + i);
+        }
+        auto f = Score::fs[bg];
+        // cerr << "before f: " << f.a << " " << f.b << endl;
+        for (int v : target_unique) {
+            for (int i = 0; i < (int)old_pos[v].size(); i++) {
+                const int p = old_pos[v][i];
+                if (p < bg) {
+                    pos_l[v].push_back(p);
+                }
+                else if (p > ed) {
+                    pos_r[v].push_back(p + q);
+                }
+                else {
+                    switch (visited_count[v]) {
+                        case 1:
+                            score.never_visited += D[v];
+                            score.once_visited -= D[v];
+                            break;
+                        case 2:
+                            score.once_visited += D[v];
+                            break;
+                        default:
+                            // nankaareba
+                            break;
+                    }
+
+                    visited_count[v]--;
+                }
+                if (old_pos[v].size() < 2) continue;
+                const int pp = (i == 0) ? old_pos[v].back() - old_len // 怪しい
+                                        : old_pos[v][i - 1];
+
+
+                score.sub_multiple_visited(p - pp - 1, D[v]);
+
+                if ((pp < bg && p >= bg) || (pp + old_len < bg)) { // 怪しい
+                    f.a -= D[v];
+                    f.b -= (p - pp - 1) * 2 * D[v] + D[v];
+                }
+            }
+        }
+
+        for (int i = 0; i < (int)new_subseq.size(); i++) {
+            const int v = new_subseq[i];
+            switch (visited_count[v]) {
+                case 0:
+                    score.never_visited -= D[v];
+                    score.once_visited += D[v];
+                    break;
+                case 1:
+                    score.once_visited -= D[v];
+                    // score.multiple_visited += D[v] * (i + 1) * (i + 2);
+                    break;
+                default:
+                    // score.multiple_visited += D[v] * (i + 1) * (i + 2);
+                    break;
+            }
+            visited_count[v]++;
+        }
+
+        for (int v : target_unique) {
+            if (visited_count[v] < 2) {
+                continue;
+            }
+            int first = -1;
+            int last  = -1;
+            {
+                const auto& pos = pos_l[v];
+                for (int i = 0; i < (int)pos.size(); i++) {
+                    if (first == -1)
+                        first = pos[i];
+                    else
+                        score.add_multiple_visited(pos[i] - last - 1, D[v]);
+                    last = pos[i];
+                }
+            }
+            {
+                const auto& pos = pos_m[v];
+                for (int i = 0; i < (int)pos.size(); i++) {
+                    if (first == -1)
+                        first = pos[i];
+                    else
+                        score.add_multiple_visited(pos[i] - last - 1, D[v]);
+                    last = pos[i];
+                }
+            }
+            {
+                const auto& pos = pos_r[v];
+                for (int i = 0; i < (int)pos.size(); i++) {
+                    if (first == -1)
+                        first = pos[i];
+                    else
+                        score.add_multiple_visited(pos[i] - last - 1, D[v]);
+                    last = pos[i];
+                }
+            }
+            score.add_multiple_visited((new_len - last) + (first - 1), D[v]);
+        }
+        score.multiple_visited += f.calc(q);
+
+        // cerr << "after f: " << f.a << " " << f.b << endl;
+        // cerr << "f.calc(q): " << f.calc(q) / (2 * new_len) << endl;
+        // cerr << "detail: " << score.never_visited << " " <<
+        // score.once_visited
+        //      << " " << score.multiple_visited << endl;
+
+        return score;
+    }
+
+    void sync_score() { score = calc_new_score(); }
 
     State build_state() {
         State ret = state->copy();
@@ -264,6 +485,11 @@ namespace transiton_arm {
                          to_string(c.accepted) + " accepted");
             logger::push("op" + to_string(i + 1),
                          to_string(c.score) + " point");
+            if (c.tries > 0) {
+                logger::push("op" + to_string(i + 1),
+                             to_string(c.score / double(c.tries))
+                                 + " point/try");
+            }
         }
     }
 
@@ -271,15 +497,16 @@ namespace transiton_arm {
 
 } // namespace transiton_arm
 
-bool op1(State& s) {
+optional<ModifiedState> op1(const State& s) {
+    // cerr << "op1" << endl;
     // 部分再構築
     const int L = s.seq.size();
-    if (L < 2) return false;
+    if (L < 2) return nullopt;
     int len = 1;
     int bg  = 0;
     int ed  = 0;
     while (s.seq[bg] == s.seq[ed]) {
-        len = xorshift::getInt(min(10, L - 1)) + 1;
+        len = xorshift::getInt(min(10, L - 1)) + 1; // 増やしていいかも
         bg  = xorshift::getInt(L - len);
         ed  = bg + len;
     }
@@ -289,19 +516,41 @@ bool op1(State& s) {
     const auto new_path = find_path(s.seq[bg], s.seq[ed]);
     assert(new_path.front() == s.seq[bg]);
     assert(new_path.back() == s.seq[ed]);
-    s.seq.erase(s.seq.begin() + bg, s.seq.begin() + ed + 1);
-    s.seq.insert(s.seq.begin() + bg, new_path.begin(), new_path.end());
-    s.sync_score();
-    return true;
+    int n_bg = 0;
+    int n_ed = new_path.size() - 1;
+    while (n_bg <= n_ed && bg <= ed && s.seq[bg] == new_path[n_bg]) {
+        bg++;
+        n_bg++;
+    }
+    while (n_bg <= n_ed && bg <= ed && s.seq[ed] == new_path[n_ed]) {
+        ed--;
+        n_ed--;
+    }
+    if (bg > ed && n_bg > n_ed) return nullopt;
+    if (bg >= (int)s.seq.size()) {
+        bg--;
+        ed--;
+        n_bg--;
+        n_ed--;
+    }
+    ModifiedState ret;
+    ret.state = &s;
+    ret.bg    = bg;
+    ret.ed    = ed;
+    ret.new_subseq =
+        vector<int16_t>(new_path.begin() + n_bg, new_path.begin() + n_ed + 1);
+    ret.sync_score();
+    return ret;
 }
 
-bool op2(State& s) {
+optional<ModifiedState> op2(const State& s) {
+    // cerr << "op2" << endl;
     // 条件付き部分再構築
     const int L = s.seq.size();
-    if (L < 2) return false;
-    int len      = xorshift::getInt(min(10, L - 1)) + 1;
-    const int bg = xorshift::getInt(L - len);
-    const int ed = bg + len;
+    if (L < 2) return nullopt;
+    int len = xorshift::getInt(min(10, L - 1)) + 1;
+    int bg  = xorshift::getInt(L - len);
+    int ed  = bg + len;
     assert(bg < ed);
     assert(bg >= 0);
     assert(ed < L);
@@ -312,49 +561,99 @@ bool op2(State& s) {
         v = xorshift::getInt(N * N);
     }
     // v に行くまでのパスを探す
-    const auto new_path1 = find_path(s.seq[bg], v);
+    auto new_path1 = find_path(s.seq[bg], v);
     // v から ed までのパスを探す
     const auto new_path2 = find_path(v, s.seq[ed]);
     assert(new_path1.front() == s.seq[bg]);
     assert(new_path1.back() == v);
     assert(new_path2.front() == v);
     assert(new_path2.back() == s.seq[ed]);
-    s.seq.erase(s.seq.begin() + bg, s.seq.begin() + ed + 1);
-    s.seq.insert(s.seq.begin() + bg, new_path1.begin(), new_path1.end());
-    s.seq.insert(s.seq.begin() + bg + new_path1.size(), new_path2.begin() + 1,
-                 new_path2.end());
-    s.sync_score();
-    return true;
+    new_path1.insert(new_path1.end(), new_path2.begin() + 1, new_path2.end());
+    int n_bg = 0;
+    int n_ed = new_path1.size() - 1;
+    while (n_bg <= n_ed && bg <= ed && s.seq[bg] == new_path1[n_bg]) {
+        bg++;
+        n_bg++;
+    }
+    while (n_bg <= n_ed && bg <= ed && s.seq[ed] == new_path1[n_ed]) {
+        ed--;
+        n_ed--;
+    }
+    if (bg > ed && n_bg > n_ed) return nullopt;
+    if (bg >= (int)s.seq.size()) {
+        bg--;
+        ed--;
+        n_bg--;
+        n_ed--;
+    }
+
+    ModifiedState ret;
+    ret.state = &s;
+    ret.bg    = bg;
+    ret.ed    = ed;
+    ret.new_subseq =
+        vector<int16_t>(new_path1.begin() + n_bg, new_path1.begin() + n_ed + 1);
+    ret.sync_score();
+    return ret;
 }
 
-bool op3(State& s) {
+optional<ModifiedState> op3(const State& s) {
+    // cerr << "op3" << endl;
     // 閉路反転
     const int L = s.seq.size();
-    if (L < 2) return false;
+    if (L < 2) return nullopt;
 
     for (int ti = 0; ti < 30; ti++) {
-        const int i = xorshift::getInt(L);
-        int j       = 10;
-        for (; j < L && j < i + N * N / 10; j++) {
-            if (s.seq[i] == s.seq[j]) break;
+        int bg = xorshift::getInt(L);
+        int ed = bg + 10;
+        for (; ed < L && ed < bg + N * N / 10; ed++) {
+            if (s.seq[bg] == s.seq[ed]) break;
         }
-        if (j >= L || s.seq[i] != s.seq[j]) continue;
-        assert(s.seq[i] == s.seq[j]);
-        reverse(s.seq.begin() + i + 1, s.seq.begin() + j);
+        if (ed >= L || s.seq[bg] != s.seq[ed]) continue;
+        assert(s.seq[bg] == s.seq[ed]);
+        auto new_path =
+            vector<int16_t>(s.seq.begin() + bg, s.seq.begin() + ed + 1);
+        reverse(new_path.begin(), new_path.end());
+        int n_bg = 0;
+        int n_ed = new_path.size() - 1;
+        while (n_bg <= n_ed && bg <= ed && s.seq[bg] == new_path[n_bg]) {
+            bg++;
+            n_bg++;
+        }
+        while (n_bg <= n_ed && bg <= ed && s.seq[ed] == new_path[n_ed]) {
+            ed--;
+            n_ed--;
+        }
+        if (bg > ed && n_bg > n_ed) return nullopt;
+        if (bg >= (int)s.seq.size()) {
+            bg--;
+            ed--;
+            n_bg--;
+            n_ed--;
+        }
+        // cerr << "bg: " << bg << endl;
+        // cerr << "ed: " << ed << endl;
+        // cerr << "n_bg: " << n_bg << endl;
+        // cerr << "n_ed: " << n_ed << endl;
+        ModifiedState ret;
+        ret.state      = &s;
+        ret.bg         = bg;
+        ret.ed         = ed;
+        ret.new_subseq = vector<int16_t>(new_path.begin() + n_bg,
+                                         new_path.begin() + n_ed + 1);
 
-        s.sync_score();
-        return true;
+        ret.sync_score();
+        return ret;
     }
-    return false;
+    return nullopt;
 }
 
 State improve(State s) {
     scheduler::Scheduler<1950> timer;
+    // output(s.seq, cell);
     while (timer.update()) {
         double progress = timer.progress / double(timer.limit);
         // cerr << "progress: " << progress << endl;
-
-        State t = s.copy();
 
         // cerr << op << endl;
         // cerr << "L: " << s.seq.size() - 1 << endl;
@@ -363,17 +662,18 @@ State improve(State s) {
         // }
         // cerr << endl;
         transiton_arm::OP op;
-        for (bool ok = false; !ok;) {
+        optional<ModifiedState> t = nullopt;
+        while (!t.has_value()) {
             op = transiton_arm::choice();
             switch (op) {
                 case transiton_arm::OP::OP1:
-                    ok = op1(t);
+                    t = op1(s);
                     break;
                 case transiton_arm::OP::OP2:
-                    ok = op2(t);
+                    t = op2(s);
                     break;
                 case transiton_arm::OP::OP3:
-                    ok = op3(t);
+                    t = op3(s);
                     break;
                 default:
                     assert(false);
@@ -385,19 +685,40 @@ State improve(State s) {
         double c_x                 = 1 + (1000 - 1) * progress;
         const double c_l           = LENGTH_PENALTY_COEFFICIENT;
         const double current_score = s.score.score_with_penalty(c_x, c_l);
-        const double next_score    = t.score.score_with_penalty(c_x, c_l);
+        const double next_score = t.value().score.score_with_penalty(c_x, c_l);
         const double temperture =
             calc_temperature(timer.progress, timer.limit, T_START, T_END);
-        const double prob =
-            calc_probability(next_score, current_score, temperture);
+        double prob = calc_probability(next_score, current_score, temperture);
+        if (current_score == next_score) prob = 0.5;
         const double r = xorshift::getDouble();
+        // cerr << current_score << " <-> " << next_score << endl;
+
         if (r < prob) {
-            s.copy_from(t);
-            // cerr << "update: " << next_score << "(" << progress << ")"
+            s.copy_from(t.value().build_state());
+            // cerr << "actual: " << t.value().score.score_with_penalty(c_x,
+            // c_l)
+            //      << endl;
+            // cerr << "expected: " << s.score.score_with_penalty(c_x, c_l)
+            //      << endl;
+            // cerr << "actual_detail: " << t.value().score.never_visited << " "
+            //      << t.value().score.once_visited << " "
+            //      << t.value().score.multiple_visited << endl;
+            // cerr << "expected_detail: " << s.score.never_visited << " "
+            //      << s.score.once_visited << " " << s.score.multiple_visited
+            //      << endl;
+            // output(s.seq, cell);
+            if (s.score.score_with_penalty(c_x, c_l) != next_score) {
+                cerr << "ng" << endl;
+                exit(-1);
+            }
+            // cerr << "update: " << next_score << "(" << temperture << ")"
+            //      << endl;
+            //
             //      << " " << s.seq.size() << endl;
             // cerr << "L: " << s.seq.size() - 1 << endl;
-            // cerr << t.score.xc << " " << t.score.yc << " " << t.score.z <<
-            // endl; cerr << s.score.xc << " " << s.score.yc << " " << s.score.z
+            // cerr << t.score.xc << " " << t.score.yc << " " << t.score.z
+            // << endl; cerr << s.score.xc << " " << s.score.yc << " " <<
+            // s.score.z
             // << endl;
             transiton_arm::register_transition(op, true,
                                                next_score - current_score);
