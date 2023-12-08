@@ -18,6 +18,11 @@ release: CXXFLAGS+=-O3
 release: DEFINES=-DLOCAL
 release: main
 
+.PHONY: profile
+profile: CXXFLAGS+=-O3 -pg
+profile: DEFINES=-DFLAME_GRAPH
+profile: main
+
 .PHONY: expand
 expand:
 	$(PYTHON) $(EXPANDER) $(SRC_FILE) $(EXPANDED_FILE)
