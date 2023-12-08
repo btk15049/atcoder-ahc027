@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import sys
 from time import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 from joblib import Parallel, delayed
 import math
 import last_score
@@ -113,7 +113,7 @@ def parse_scores(results: List[ExecuteResult]) -> List[float]:
         score = parse_score(result)
         if score is None:
             print(f"{result.log_file} のパースに失敗しました。")
-            scores.append(10)
+            scores.append(100)
         else:
             scores.append(math.log2(score))
     return scores

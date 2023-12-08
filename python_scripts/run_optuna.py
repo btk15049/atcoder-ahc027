@@ -52,10 +52,10 @@ def run_remote(source_path: pathlib.Path, dir: pathlib.Path, build_cmd: str):
 
 def objective(trial: optuna.Trial):
     seeds = [1000,
-             trial.suggest_int("OP2_P", 0, 1000000),
-             trial.suggest_int("OP3_P", 0, 1000000),
-             trial.suggest_int("OP4_P", 0, 1000000),
-             trial.suggest_int("OP5_P", 0, 1000000),
+             trial.suggest_int("OP2_P", 0, 2000),
+             trial.suggest_int("OP3_P", 0, 2000),
+             trial.suggest_int("OP4_P", 0, 2000),
+             trial.suggest_int("OP5_P", 0, 2000),
              ]
     total = sum(seeds)
 
