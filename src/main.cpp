@@ -761,13 +761,22 @@ optional<ModifiedState> op5(const State& s) {
     const int L = s.seq.size();
     if (L < 2) return nullopt;
 
-    for (int ti = 0; ti < 30; ti++) {
-        int bg = xorshift::getInt(L);
-        int ed = bg + 10;
-        for (; ed < L && ed < bg + N * 5; ed++) {
-            if (s.seq[bg] == s.seq[ed]) break;
+    const int len_max = N * OP5_LEN_MAX_COEF;
+
+    for (int ti = 0; ti < OP5_MAX_TRIES; ti++) {
+        int bg             = xorshift::getInt(L);
+        const int v        = s.seq[bg];
+        const int pos_size = s.score.pos[v].size();
+        int bg_pos         = find(s.score.pos[s.seq[bg]].begin(),
+                          s.score.pos[s.seq[bg]].end(), bg)
+                     - s.score.pos[s.seq[bg]].begin();
+        int ed_pos = bg_pos + 1;
+        while (ed_pos < pos_size && s.score.pos[v][ed_pos] - bg < OP5_LEN_MIN) {
+            ed_pos++;
         }
-        if (ed >= L || s.seq[bg] != s.seq[ed]) continue;
+        if (ed_pos >= pos_size) continue;
+        int ed = s.score.pos[v][ed_pos];
+        if (ed - bg > len_max) continue;
         assert(s.seq[bg] == s.seq[ed]);
         ModifiedState ret;
         ret.state      = &s;

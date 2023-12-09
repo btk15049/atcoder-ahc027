@@ -77,6 +77,12 @@ constexpr int OP3_LEN_MIN =
 #endif
     ;
 
+constexpr int OP5_MAX_TRIES = 30;
+
+constexpr double OP5_LEN_MAX_COEF = 5;
+
+constexpr int OP5_LEN_MIN = 10;
+
 constexpr int OP6_LEN_MAX =
 #ifdef PARAM_OP6_LEN_MAX
     PARAM_OP6_LEN_MAX
