@@ -37,11 +37,11 @@ struct Score {
     static F fs[L_MAX];
     static vector<int> pos[N_UB * N_UB];
 
-    void add_multiple_visited(int64_t subseq_len, int64_t d) {
+    inline void add_multiple_visited(int64_t subseq_len, int64_t d) {
         multiple_visited += d * subseq_len * (subseq_len + 1);
     }
 
-    void sub_multiple_visited(int64_t subseq_len, int64_t d) {
+    inline void sub_multiple_visited(int64_t subseq_len, int64_t d) {
         multiple_visited -= d * subseq_len * (subseq_len + 1);
     }
 
@@ -87,13 +87,13 @@ Score build_score(Container seq) {
             case 1:
                 score.once_visited -= D[v];
                 score.add_multiple_visited(i - Score::pos[v].back() - 1, D[v]);
-                multiple_visited.push_back(v);
+                multiple_visited.emplace_back(v);
                 break;
             default:
                 score.add_multiple_visited(i - Score::pos[v].back() - 1, D[v]);
                 break;
         }
-        Score::pos[v].push_back(i);
+        Score::pos[v].emplace_back(i);
         Score::fs[i] = {0, 0};
     }
 
@@ -242,7 +242,7 @@ struct ModifiedState {
             visited_count[v] = old_pos[v].size();
             if (timestamp[v] != current_ts) {
                 timestamp[v] = current_ts;
-                target_unique.push_back(v);
+                target_unique.emplace_back(v);
                 pos_l[v].clear();
                 pos_m[v].clear();
                 pos_r[v].clear();
@@ -253,23 +253,24 @@ struct ModifiedState {
             visited_count[v] = old_pos[v].size();
             if (timestamp[v] != current_ts) {
                 timestamp[v] = current_ts;
-                target_unique.push_back(v);
+                target_unique.emplace_back(v);
                 pos_l[v].clear();
                 pos_m[v].clear();
                 pos_r[v].clear();
             }
-            pos_m[v].push_back(bg + i);
+            pos_m[v].emplace_back(bg + i);
         }
         auto f = Score::fs[bg];
         // cerr << "before f: " << f.a << " " << f.b << endl;
         for (int v : target_unique) {
-            for (int i = 0; i < (int)old_pos[v].size(); i++) {
+            const int old_pos_size = old_pos[v].size();
+            for (int i = 0; i < old_pos_size; i++) {
                 const int p = old_pos[v][i];
                 if (p < bg) {
-                    pos_l[v].push_back(p);
+                    pos_l[v].emplace_back(p);
                 }
                 else if (p > ed) {
-                    pos_r[v].push_back(p + q);
+                    pos_r[v].emplace_back(p + q);
                 }
                 else {
                     switch (visited_count[v]) {
@@ -287,7 +288,7 @@ struct ModifiedState {
 
                     visited_count[v]--;
                 }
-                if (old_pos[v].size() < 2) continue;
+                if (old_pos_size < 2) continue;
                 const int pp = (i == 0) ? old_pos[v].back() - old_len // 怪しい
                                         : old_pos[v][i - 1];
 
@@ -327,7 +328,8 @@ struct ModifiedState {
             int last  = -1;
             {
                 const auto& pos = pos_l[v];
-                for (int i = 0; i < (int)pos.size(); i++) {
+                const int size  = pos.size();
+                for (int i = 0; i < size; i++) {
                     if (first == -1)
                         first = pos[i];
                     else
@@ -337,7 +339,8 @@ struct ModifiedState {
             }
             {
                 const auto& pos = pos_m[v];
-                for (int i = 0; i < (int)pos.size(); i++) {
+                const int size  = pos.size();
+                for (int i = 0; i < size; i++) {
                     if (first == -1)
                         first = pos[i];
                     else
@@ -347,7 +350,8 @@ struct ModifiedState {
             }
             {
                 const auto& pos = pos_r[v];
-                for (int i = 0; i < (int)pos.size(); i++) {
+                const int size  = pos.size();
+                for (int i = 0; i < size; i++) {
                     if (first == -1)
                         first = pos[i];
                     else

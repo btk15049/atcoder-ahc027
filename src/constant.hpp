@@ -34,7 +34,7 @@ constexpr int OP1_P =
 #ifdef PARAM_OP1_P
     PARAM_OP1_P
 #else
-    272
+    240
 #endif
     ;
 
@@ -42,7 +42,7 @@ constexpr int OP2_P =
 #ifdef PARAM_OP2_P
     PARAM_OP2_P
 #else
-    1
+    0
 #endif
     ;
 
@@ -50,7 +50,7 @@ constexpr int OP3_P =
 #ifdef PARAM_OP3_P
     PARAM_OP3_P
 #else
-    161
+    60
 #endif
     ;
 
@@ -58,7 +58,7 @@ constexpr int OP4_P =
 #ifdef PARAM_OP4_P
     PARAM_OP4_P
 #else
-    2
+    0
 #endif
     ;
 
@@ -66,7 +66,7 @@ constexpr int OP5_P =
 #ifdef PARAM_OP5_P
     PARAM_OP5_P
 #else
-    8
+    7
 #endif
     ;
 
@@ -74,7 +74,7 @@ constexpr int OP6_P =
 #ifdef PARAM_OP6_P
     PARAM_OP6_P
 #else
-    32
+    29
 #endif
     ;
 
@@ -82,7 +82,7 @@ constexpr int OP7_P =
 #ifdef PARAM_OP7_P
     PARAM_OP7_P
 #else
-    510
+    647
 #endif
     ;
 
@@ -90,6 +90,6 @@ constexpr int OP8_P =
 #ifdef PARAM_OP8_P
     PARAM_OP8_P
 #else
-    14
+    17
 #endif
     ;

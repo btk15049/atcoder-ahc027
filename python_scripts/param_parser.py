@@ -1,13 +1,9 @@
 import math
 
+string = "OP2_P: 3, OP3_P: 254, OP4_P: 1, OP5_P: 31, OP6_P: 125, OP7_P: 2727, OP8_P: 72"
 param = {
-    "OP2_P": 4,
-    "OP3_P": 600,
-    "OP4_P": 9,
-    "OP5_P": 30,
-    "OP6_P": 121,
-    "OP7_P": 1898,
-    "OP8_P": 55,
+    key: int(value)
+    for key, value in [x.split(": ") for x in string.split(", ")]
 }
 
 total = 1000 + sum(param.values())
