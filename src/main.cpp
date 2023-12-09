@@ -941,7 +941,7 @@ void dfs(State& state, int v, bool first = true) {
     }
     visited[v] = 1;
     state.add_back(v);
-    // xorshift::shuffle(g[v]);
+    xorshift::shuffle(g[v]);
     for (int u : g[v]) {
         if (visited[u]) continue;
         dfs(state, u, false);
@@ -964,6 +964,7 @@ State sample() {
             //      << endl;
         }
     }
+    best.sync_score();
     // exit(-1);
     return best;
 }
