@@ -15,7 +15,7 @@ REPO_ROOT = FILE_DIR.parent.absolute()
 
 # Add stream handler of stdout to show the messages
 optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
-study_name = "op7_detail"  # Unique identifier of the study.
+study_name = "op3_detail_3"  # Unique identifier of the study.
 storage_name = f"sqlite:///{sys.argv[1]}.db"
 
 storage = optuna.storages.RDBStorage(
@@ -72,8 +72,13 @@ def objective(trial: optuna.Trial):
         # OP6_P=int(math.floor(1000 * seeds[5] / total)),
         # OP7_P=int(math.floor(1000 * seeds[6] / total)),
         # OP8_P=int(math.floor(1000 * seeds[7] / total)),
-        OP7_LEN_MAX = trial.suggest_int("OP7_LEN_MAX", 3, 50),
-        OP7_DIST_THRESHOLD = trial.suggest_int("OP7_DIST_THRESHOLD", 3, 50),
+        OP3_MAX_TRIES = trial.suggest_int("OP3_MAX_TRIES", 1, 100),
+        OP3_LEN_MAX_COEF = trial.suggest_float("OP3_LEN_MAX_COEF", 0.01, 10),
+        OP3_LEN_MIN = trial.suggest_int("OP3_LEN_MIN", 3, 100),
+        # OP7_LEN_MAX = trial.suggest_int("OP7_LEN_MAX", 3, 50),
+        # OP7_DIST_THRESHOLD = trial.suggest_int("OP7_DIST_THRESHOLD", 3, 50),
+        # LENGTH_THRESHOLD = trial.suggest_int("LENGTH_THRESHOLD", 2, 50),
+        # LENGTH_PENALTY_COEFFICIENT=10**trial.suggest_float("LENGTH_PENALTY_COEFFICIENT", 5, 10),
     )
 
 
@@ -132,5 +137,5 @@ def objective(trial: optuna.Trial):
 
 study.optimize(
     objective,
-    n_trials=50,
+    n_trials=300,
 )

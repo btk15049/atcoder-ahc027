@@ -15,7 +15,7 @@ constexpr double LENGTH_THRESHOLD =
 #ifdef PARAM_LENGTH_THRESHOLD
     PARAM_LENGTH_THRESHOLD
 #else
-    4.0
+    50.0
 #endif
     ;
 
@@ -24,7 +24,7 @@ constexpr double LENGTH_PENALTY_COEFFICIENT =
 #ifdef PARAM_LENGTH_PENALTY_COEFFICIENT
     PARAM_LENGTH_PENALTY_COEFFICIENT
 #else
-    1e7
+    1e9
 #endif
     ;
 
@@ -50,6 +50,30 @@ constexpr int OP1_LEN_MAX =
     PARAM_OP1_LEN_MAX
 #else
     10
+#endif
+    ;
+
+constexpr int OP3_MAX_TRIES =
+#ifdef PARAM_OP3_MAX_TRIES
+    PARAM_OP3_MAX_TRIES
+#else
+    25
+#endif
+    ;
+
+constexpr double OP3_LEN_MAX_COEF =
+#ifdef PARAM_OP3_LEN_MAX_COEF
+    PARAM_OP3_LEN_MAX_COEF
+#else
+    0.5
+#endif
+    ;
+
+constexpr int OP3_LEN_MIN =
+#ifdef PARAM_OP3_LEN_MIN
+    PARAM_OP3_LEN_MIN
+#else
+    16
 #endif
     ;
 
