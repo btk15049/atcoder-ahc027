@@ -10,8 +10,23 @@ constexpr int D_UB = 1000;
 /// @brief 操作回数の上限
 constexpr int L_MAX = 100000;
 
-constexpr double LENGTH_THRESHOLD           = 4.0;
-constexpr double LENGTH_PENALTY_COEFFICIENT = 1e7;
+
+constexpr double LENGTH_THRESHOLD =
+#ifdef PARAM_LENGTH_THRESHOLD
+    PARAM_LENGTH_THRESHOLD
+#else
+    4.0
+#endif
+    ;
+
+
+constexpr double LENGTH_PENALTY_COEFFICIENT =
+#ifdef PARAM_LENGTH_PENALTY_COEFFICIENT
+    PARAM_LENGTH_PENALTY_COEFFICIENT
+#else
+    1e7
+#endif
+    ;
 
 
 constexpr double T_START =
