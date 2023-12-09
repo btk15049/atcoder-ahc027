@@ -30,6 +30,38 @@ constexpr double T_END =
 #endif
     ;
 
+constexpr int OP1_LEN_MAX =
+#ifdef PARAM_OP1_LEN_MAX
+    PARAM_OP1_LEN_MAX
+#else
+    10
+#endif
+    ;
+
+constexpr int OP6_LEN_MAX =
+#ifdef PARAM_OP6_LEN_MAX
+    PARAM_OP6_LEN_MAX
+#else
+    10
+#endif
+    ;
+
+constexpr int OP7_LEN_MAX =
+#ifdef PARAM_OP7_LEN_MAX
+    PARAM_OP7_LEN_MAX
+#else
+    10
+#endif
+    ;
+
+constexpr int OP7_DIST_THRESHOLD =
+#ifdef PARAM_OP7_DIST_THRESHOLD
+    PARAM_OP7_DIST_THRESHOLD
+#else
+    5
+#endif
+    ;
+
 constexpr int OP1_P =
 #ifdef PARAM_OP1_P
     PARAM_OP1_P

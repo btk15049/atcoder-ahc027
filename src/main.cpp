@@ -544,7 +544,8 @@ namespace transiton_arm {
 
 } // namespace transiton_arm
 
-optional<ModifiedState> op1(const State& s, bool use_shortest_path) {
+template <int len_max>
+optional<ModifiedState> op1_(const State& s, bool use_shortest_path) {
     // cerr << "op1" << endl;
     // 部分再構築
     const int L = s.seq.size();
@@ -553,9 +554,9 @@ optional<ModifiedState> op1(const State& s, bool use_shortest_path) {
     int bg  = 0;
     int ed  = 0;
     while (s.seq[bg] == s.seq[ed]) {
-        len = xorshift::getInt(min(10, L - 1)) + 1; // 増やしていいかも
-        bg  = xorshift::getInt(L - len);
-        ed  = bg + len;
+        len = xorshift::getInt(min(len_max, L - 1)) + 1; // 増やしていいかも
+        bg = xorshift::getInt(L - len);
+        ed = bg + len;
     }
     assert(bg < ed);
     assert(bg >= 0);
@@ -590,23 +591,27 @@ optional<ModifiedState> op1(const State& s, bool use_shortest_path) {
     return ret;
 }
 
-optional<ModifiedState> op1(const State& s) { return op1(s, false); }
+optional<ModifiedState> op1(const State& s) {
+    return op1_<OP1_LEN_MAX>(s, false);
+}
 
-optional<ModifiedState> op6(const State& s) { return op1(s, true); }
+optional<ModifiedState> op6(const State& s) {
+    return op1_<OP6_LEN_MAX>(s, true);
+}
 
+template <int len_max, int dist_threshold>
 optional<ModifiedState> op2_(const State& s, bool use_shortest_path) {
     // cerr << "op2" << endl;
     // 条件付き部分再構築
     const int L = s.seq.size();
     if (L < 2) return nullopt;
-    int len = xorshift::getInt(min(10, L - 1)) + 1;
+    int len = xorshift::getInt(min(len_max, L - 1)) + 1;
     int bg  = xorshift::getInt(L - len);
     int ed  = bg + len;
     assert(bg < ed);
     assert(bg >= 0);
     assert(ed < L);
-    int v                        = s.seq[bg];
-    constexpr int dist_threshold = 5;
+    int v = s.seq[bg];
     while (v == s.seq[bg] || v == s.seq[ed]
            || manhattan(v, s.seq[bg]) > dist_threshold) {
         v = xorshift::getInt(N * N);
@@ -648,9 +653,11 @@ optional<ModifiedState> op2_(const State& s, bool use_shortest_path) {
     return ret;
 }
 
-optional<ModifiedState> op2(const State& s) { return op2_(s, false); }
+optional<ModifiedState> op2(const State& s) { return op2_<10, 5>(s, false); }
 
-optional<ModifiedState> op7(const State& s) { return op2_(s, true); }
+optional<ModifiedState> op7(const State& s) {
+    return op2_<OP7_LEN_MAX, OP7_DIST_THRESHOLD>(s, true);
+}
 
 optional<ModifiedState> op3(const State& s) {
     // cerr << "op3" << endl;
