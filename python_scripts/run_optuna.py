@@ -52,10 +52,13 @@ def run_remote(source_path: pathlib.Path, dir: pathlib.Path, build_cmd: str):
 
 def objective(trial: optuna.Trial):
     seeds = [1000,
-             trial.suggest_int("OP2_P", 0, 2000),
-             trial.suggest_int("OP3_P", 0, 2000),
-             trial.suggest_int("OP4_P", 0, 2000),
-             trial.suggest_int("OP5_P", 0, 2000),
+             trial.suggest_int("OP2_P", 0, 50),
+             trial.suggest_int("OP3_P", 0, 1500),
+             trial.suggest_int("OP4_P", 0, 50),
+             trial.suggest_int("OP5_P", 0, 100),
+             trial.suggest_int("OP6_P", 0, 500),
+             trial.suggest_int("OP7_P", 0, 4000),
+             trial.suggest_int("OP8_P", 0, 100),
              ]
     total = sum(seeds)
 
@@ -65,6 +68,9 @@ def objective(trial: optuna.Trial):
         OP3_P=int(math.floor(1000 * seeds[2] / total)),
         OP4_P=int(math.floor(1000 * seeds[3] / total)),
         OP5_P=int(math.floor(1000 * seeds[4] / total)),
+        OP6_P=int(math.floor(1000 * seeds[5] / total)),
+        OP7_P=int(math.floor(1000 * seeds[6] / total)),
+        OP8_P=int(math.floor(1000 * seeds[7] / total)),
     )
 
 
@@ -109,16 +115,19 @@ def objective(trial: optuna.Trial):
 
 
 
-study.enqueue_trial(
-    {
-        "OP2_P": 166,
-        "OP3_P": 166,
-        "OP4_P": 166,
-        "OP5_P": 166,
-    }
-)
+# study.enqueue_trial(
+#     {
+#         "OP2_P": 500,
+#         "OP3_P": 500,
+#         "OP4_P": 500,
+#         "OP5_P": 500,
+#         "OP6_P": 500,
+#         "OP7_P": 500,
+#         "OP8_P": 10,
+#     }
+# )
 
 study.optimize(
     objective,
-    n_trials=100,
+    n_trials=300,
 )

@@ -19,7 +19,7 @@ release: DEFINES=-DLOCAL
 release: main
 
 .PHONY: profile
-profile: CXXFLAGS+=-O3 -pg
+profile: CXXFLAGS+=-O3 -pg -g
 profile: DEFINES=-DFLAME_GRAPH
 profile: main
 

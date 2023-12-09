@@ -476,6 +476,8 @@ namespace transiton_arm {
         OP4, // 閉路追加
         OP5, // 閉路削除
         OP6, // 部分再構築(最短経路)
+        OP7, // 条件付き部分再構築(最短経路)
+        OP8, // 閉路追加(片側最短経路)
         // ここより下は変更しない
         OP_NUM,
     };
@@ -484,7 +486,7 @@ namespace transiton_arm {
         make_pair(OP::OP1, OP1_P), make_pair(OP::OP2, OP2_P),
         make_pair(OP::OP3, OP3_P), make_pair(OP::OP4, OP4_P),
         make_pair(OP::OP5, OP5_P), make_pair(OP::OP6, OP6_P),
-    };
+        make_pair(OP::OP7, OP7_P), make_pair(OP::OP8, OP8_P)};
 
     static_assert(accumulate(prob.begin(), prob.end(), 0,
                              [](int acc, auto& p) { return acc + p.second; })
@@ -588,7 +590,7 @@ optional<ModifiedState> op1(const State& s) { return op1(s, false); }
 
 optional<ModifiedState> op6(const State& s) { return op1(s, true); }
 
-optional<ModifiedState> op2(const State& s) {
+optional<ModifiedState> op2_(const State& s, bool use_shortest_path) {
     // cerr << "op2" << endl;
     // 条件付き部分再構築
     const int L = s.seq.size();
@@ -606,9 +608,9 @@ optional<ModifiedState> op2(const State& s) {
         v = xorshift::getInt(N * N);
     }
     // v に行くまでのパスを探す
-    auto new_path1 = find_path(s.seq[bg], v);
+    auto new_path1 = find_path(s.seq[bg], v, use_shortest_path);
     // v から ed までのパスを探す
-    const auto new_path2 = find_path(v, s.seq[ed]);
+    const auto new_path2 = find_path(v, s.seq[ed], use_shortest_path);
     assert(new_path1.front() == s.seq[bg]);
     assert(new_path1.back() == v);
     assert(new_path2.front() == v);
@@ -641,6 +643,10 @@ optional<ModifiedState> op2(const State& s) {
     ret.sync_score();
     return ret;
 }
+
+optional<ModifiedState> op2(const State& s) { return op2_(s, false); }
+
+optional<ModifiedState> op7(const State& s) { return op2_(s, true); }
 
 optional<ModifiedState> op3(const State& s) {
     // cerr << "op3" << endl;
@@ -693,7 +699,7 @@ optional<ModifiedState> op3(const State& s) {
     return nullopt;
 }
 
-optional<ModifiedState> op4(const State& s) {
+optional<ModifiedState> op4_(const State& s, bool use_shortest_path) {
     // cerr << "op4" << endl;
     // 閉路構築
     const int p = xorshift::getInt(s.seq.size() - 1) + 1;
@@ -705,7 +711,7 @@ optional<ModifiedState> op4(const State& s) {
     auto new_path = find_path(s.seq[p], v);
     assert(new_path.front() == s.seq[p]);
     assert(new_path.back() == v);
-    const auto new_path2 = find_path(v, s.seq[p]);
+    const auto new_path2 = find_path(v, s.seq[p], use_shortest_path);
     assert(new_path2.front() == v);
     assert(new_path2.back() == s.seq[p]);
     new_path.insert(new_path.end(), new_path2.begin() + 1, new_path2.end() - 1);
@@ -720,6 +726,10 @@ optional<ModifiedState> op4(const State& s) {
     ret.sync_score();
     return ret;
 }
+
+optional<ModifiedState> op4(const State& s) { return op4_(s, false); }
+
+optional<ModifiedState> op8(const State& s) { return op4_(s, true); }
 
 optional<ModifiedState> op5(const State& s) {
     // 閉路削除
@@ -781,6 +791,12 @@ State improve(State s) {
                     break;
                 case transiton_arm::OP::OP6:
                     t = op6(s);
+                    break;
+                case transiton_arm::OP::OP7:
+                    t = op7(s);
+                    break;
+                case transiton_arm::OP::OP8:
+                    t = op8(s);
                     break;
                 default:
                     assert(false);
