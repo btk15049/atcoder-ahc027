@@ -8,6 +8,7 @@
 #include "common/time_scheduler.hpp"
 #include "common/xorshift.hpp"
 #include "common/logger.hpp"
+#include "common/original_vector.hpp"
 
 #include "constant.hpp"
 #include "io.hpp"
@@ -173,9 +174,9 @@ namespace for_modified_state {
     int current_ts = 0;
     int timestamp[N_UB * N_UB];
     int visited_count[N_UB * N_UB];
-    vector<int> pos_l[N_UB * N_UB];
-    vector<int> pos_m[N_UB * N_UB];
-    vector<int> pos_r[N_UB * N_UB];
+    OriginalVector<int> pos_l[N_UB * N_UB];
+    OriginalVector<int> pos_m[N_UB * N_UB];
+    OriginalVector<int> pos_r[N_UB * N_UB];
 
 } // namespace for_modified_state
 
@@ -233,7 +234,7 @@ struct ModifiedState {
 
         using namespace for_modified_state;
         current_ts++;
-        static vector<int> target_unique;
+        static OriginalVector<int> target_unique;
         target_unique.clear();
 
         // 使うやつだけコピー
@@ -242,7 +243,7 @@ struct ModifiedState {
             visited_count[v] = old_pos[v].size();
             if (timestamp[v] != current_ts) {
                 timestamp[v] = current_ts;
-                target_unique.emplace_back(v);
+                target_unique.push_back(v);
                 pos_l[v].clear();
                 pos_m[v].clear();
                 pos_r[v].clear();
@@ -253,12 +254,12 @@ struct ModifiedState {
             visited_count[v] = old_pos[v].size();
             if (timestamp[v] != current_ts) {
                 timestamp[v] = current_ts;
-                target_unique.emplace_back(v);
+                target_unique.push_back(v);
                 pos_l[v].clear();
                 pos_m[v].clear();
                 pos_r[v].clear();
             }
-            pos_m[v].emplace_back(bg + i);
+            pos_m[v].push_back(bg + i);
         }
         auto f = Score::fs[bg];
         // cerr << "before f: " << f.a << " " << f.b << endl;
@@ -267,10 +268,10 @@ struct ModifiedState {
             for (int i = 0; i < old_pos_size; i++) {
                 const int p = old_pos[v][i];
                 if (p < bg) {
-                    pos_l[v].emplace_back(p);
+                    pos_l[v].push_back(p);
                 }
                 else if (p > ed) {
-                    pos_r[v].emplace_back(p + q);
+                    pos_r[v].push_back(p + q);
                 }
                 else {
                     switch (visited_count[v]) {
@@ -328,7 +329,7 @@ struct ModifiedState {
             int last  = -1;
             {
                 const auto& pos = pos_l[v];
-                const int size  = pos.size();
+                const int size  = pos.size;
                 for (int i = 0; i < size; i++) {
                     if (first == -1)
                         first = pos[i];
@@ -339,7 +340,7 @@ struct ModifiedState {
             }
             {
                 const auto& pos = pos_m[v];
-                const int size  = pos.size();
+                const int size  = pos.size;
                 for (int i = 0; i < size; i++) {
                     if (first == -1)
                         first = pos[i];
@@ -350,7 +351,7 @@ struct ModifiedState {
             }
             {
                 const auto& pos = pos_r[v];
-                const int size  = pos.size();
+                const int size  = pos.size;
                 for (int i = 0; i < size; i++) {
                     if (first == -1)
                         first = pos[i];
@@ -389,6 +390,7 @@ namespace for_find_path {
     int visited[N_UB * N_UB];
     int ts = 1;
     int dist[N_UB * N_UB][N_UB * N_UB];
+    OriginalVector<int16_t, N_UB * N_UB> seq;
 
     void init() {
         ts = 1;
@@ -409,7 +411,8 @@ namespace for_find_path {
             }
         }
     }
-    inline bool dfs(int v, int goal, vector<int16_t>& path) {
+    template <typename T>
+    inline bool dfs(int v, int goal, T& path) {
         visited[v] = ts;
         path.push_back(v);
         if (v == goal) return true;
@@ -422,7 +425,8 @@ namespace for_find_path {
         return false;
     }
 
-    inline void shortest_path(int v, int goal, vector<int16_t>& path) {
+    template <typename T>
+    inline void shortest_path(int v, int goal, T& path) {
         path.push_back(v);
         while (v != goal) {
             int min_dist = N_UB * N_UB;
@@ -443,7 +447,6 @@ namespace for_find_path {
 
 vector<int16_t> find_path(int st, int gl, bool use_shortest_path = false) {
     using namespace for_find_path;
-    static vector<int16_t> seq;
     seq.clear();
     ts++;
     if (use_shortest_path)
@@ -452,7 +455,7 @@ vector<int16_t> find_path(int st, int gl, bool use_shortest_path = false) {
         dfs(st, gl, seq);
     assert(!seq.empty());
 
-    return seq;
+    return vector<int16_t>(seq.begin(), seq.end());
 }
 
 
@@ -524,8 +527,10 @@ namespace transiton_arm {
     }
 
     void add_log() {
+        int64_t total_tries = 0;
         for (int i = 0; i < OP_NUM; i++) {
             auto& c = counter[i];
+            total_tries += c.tries;
             logger::push("op" + to_string(i + 1),
                          to_string(c.tries) + " tries");
             logger::push("op" + to_string(i + 1),
@@ -538,6 +543,7 @@ namespace transiton_arm {
                                  + " point/try");
             }
         }
+        logger::push("op", to_string(total_tries) + " tries");
     }
 
     OP choice() { return prob_seq[xorshift::getInt(TABLE_SIZE)]; }
