@@ -791,7 +791,7 @@ optional<ModifiedState> op5(const State& s) {
 }
 
 State improve(State s) {
-    scheduler::Scheduler<1950> timer;
+    scheduler::Scheduler<1900> timer;
     // output(s.seq, cell);
     while (timer.update()) {
         double progress = timer.progress / double(timer.limit);
@@ -969,6 +969,124 @@ State sample() {
     return best;
 }
 
+// 代表頂点を返す
+vector<int> find_cluster() {
+    int threshold = CLUSTER_THRESHOLD;
+
+    static int used[N_UB * N_UB];
+    fill(used, used + N * N, 0);
+    used[0] = 1;
+    vector<int> ret;
+
+    while (true) {
+        // 1. unused なマスのうち d が最大のマスを探す、 d が 100 以下なら終了
+        int max_d = -1;
+        int max_v = -1;
+        for (int i = 0; i < N * N; i++) {
+            if (used[i]) continue;
+            if (D[i] > max_d) {
+                max_d = D[i];
+                max_v = i;
+            }
+        }
+        if (ret.empty() && threshold > max_d) {
+            threshold = max_d / 2;
+        }
+        if (max_d < threshold) break;
+        if (max_v == -1) break;
+        ret.push_back(max_v);
+        // cerr << cell[max_v].to_string() << ": " << max_d << endl;
+
+        // 2. そのマスから隣接したマスのうち
+        // 汚れ d' が log(d') >= log(d) - 1
+        // を満たすもの高いものから順にクラスタに加えていく クラスタのサイズが N
+        // になったら終了
+        set<int> cluster;
+        cluster.insert(max_v);
+        priority_queue<pair<int, int>> pq;
+        pq.emplace(max_d, max_v);
+        used[max_v] = 1;
+        while ((int)cluster.size() < N && !pq.empty()) {
+            const auto [d, v] = pq.top();
+            pq.pop();
+            for (int u : g[v]) {
+                if (used[u]) continue;
+                if (log10(D[u]) >= log10(max_d) - 1) {
+                    cluster.insert(u);
+                    pq.emplace(D[u], u);
+                    used[u] = 1;
+                }
+            }
+        }
+        while (!pq.empty()) {
+            // used を戻す
+            const auto v = pq.top().second;
+            pq.pop();
+            used[v] = 0;
+        }
+    }
+    return ret;
+}
+
+State build_first_state() {
+    State best;
+    double best_score = 1e18;
+
+
+    auto cluster = find_cluster();
+
+    // 何回か回して最良のものを返す
+    scheduler::Scheduler<10> timer;
+
+    while (timer.update()) {
+        State s;
+        xorshift::shuffle(cluster);
+        s.add_back(0);
+        for (int k = 0; k < FIRST_LOOPS; k++) {
+            for (int v : cluster) {
+                auto path = find_path(s.seq.back(), v, true);
+                assert(path.front() == s.seq.back());
+                assert(path.back() == v);
+                for (size_t p_i = 1; p_i < path.size(); p_i++) {
+                    s.add_back(path[p_i]);
+                }
+            }
+        }
+        {
+            int cur = s.seq.back();
+            s.seq.pop_back();
+            dfs(s, cur);
+        }
+        for (int k = 0; k < FIRST_LOOPS; k++) {
+            for (int v : cluster) {
+                if (v == s.seq.back()) continue;
+                auto path = find_path(s.seq.back(), v, true);
+                assert(path.front() == s.seq.back());
+                assert(path.back() == v);
+                for (size_t p_i = 1; p_i < path.size(); p_i++) {
+                    s.add_back(path[p_i]);
+                }
+            }
+        }
+        {
+            auto path = find_path(s.seq.back(), 0, true);
+            assert(path.front() == s.seq.back());
+            assert(path.back() == 0);
+            for (size_t p_i = 1; p_i < path.size(); p_i++) {
+                s.add_back(path[p_i]);
+            }
+        }
+        s.sync_score();
+        const double score = s.score.score_with_penalty(0, 0);
+        if (score < best_score) {
+            best_score = score;
+            best       = s;
+        }
+    }
+    best.sync_score();
+    return best;
+}
+
 int main() {
     cerr << fixed << setprecision(5);
     N = input(g, D, cell);
@@ -976,9 +1094,9 @@ int main() {
 
     logger::push("N", int64_t(N));
 
-    // auto first = build_first_state();
-    auto first = sample();
-    auto ret   = improve(first);
+    auto first = build_first_state();
+    // auto first = sample();
+    auto ret = improve(first);
     fix_unreachable(ret);
     ret.sync_score();
 

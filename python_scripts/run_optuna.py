@@ -15,7 +15,7 @@ REPO_ROOT = FILE_DIR.parent.absolute()
 
 # Add stream handler of stdout to show the messages
 optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
-study_name = "op3_detail_3"  # Unique identifier of the study.
+study_name = "op_balance"  # Unique identifier of the study.
 storage_name = f"sqlite:///{sys.argv[1]}.db"
 
 storage = optuna.storages.RDBStorage(
@@ -51,30 +51,32 @@ def run_remote(source_path: pathlib.Path, dir: pathlib.Path, build_cmd: str):
 
 
 def objective(trial: optuna.Trial):
-    # seeds = [
-    #         1000,
-    #         trial.suggest_int("OP2_P", 0, 50),
-    #         trial.suggest_int("OP3_P", 0, 1500),
-    #         trial.suggest_int("OP4_P", 0, 50),
-    #         trial.suggest_int("OP5_P", 0, 100),
-    #         trial.suggest_int("OP6_P", 0, 500),
-    #         trial.suggest_int("OP7_P", 0, 4000),
-    #         trial.suggest_int("OP8_P", 0, 100),
-    #          ]
-    # total = sum(seeds)
+    seeds = [
+            1000,
+            trial.suggest_int("OP2_P", 0, 100),
+            trial.suggest_int("OP3_P", 0, 1500),
+            trial.suggest_int("OP4_P", 0, 300),
+            trial.suggest_int("OP5_P", 0, 100),
+            trial.suggest_int("OP6_P", 0, 500),
+            trial.suggest_int("OP7_P", 0, 4000),
+            trial.suggest_int("OP8_P", 0, 100),
+             ]
+    total = sum(seeds)
 
     params = dict(
-        # OP1_P=1000 - sum([int(math.floor(1000 * seed / total)) for seed in seeds[1:]]),
-        # OP2_P=int(math.floor(1000 * seeds[1] / total)),
-        # OP3_P=int(math.floor(1000 * seeds[2] / total)),
-        # OP4_P=int(math.floor(1000 * seeds[3] / total)),
-        # OP5_P=int(math.floor(1000 * seeds[4] / total)),
-        # OP6_P=int(math.floor(1000 * seeds[5] / total)),
-        # OP7_P=int(math.floor(1000 * seeds[6] / total)),
-        # OP8_P=int(math.floor(1000 * seeds[7] / total)),
-        OP3_MAX_TRIES = trial.suggest_int("OP3_MAX_TRIES", 1, 100),
-        OP3_LEN_MAX_COEF = trial.suggest_float("OP3_LEN_MAX_COEF", 0.01, 10),
-        OP3_LEN_MIN = trial.suggest_int("OP3_LEN_MIN", 3, 100),
+        OP1_P=1000 - sum([int(math.floor(1000 * seed / total)) for seed in seeds[1:]]),
+        OP2_P=int(math.floor(1000 * seeds[1] / total)),
+        OP3_P=int(math.floor(1000 * seeds[2] / total)),
+        OP4_P=int(math.floor(1000 * seeds[3] / total)),
+        OP5_P=int(math.floor(1000 * seeds[4] / total)),
+        OP6_P=int(math.floor(1000 * seeds[5] / total)),
+        OP7_P=int(math.floor(1000 * seeds[6] / total)),
+        OP8_P=int(math.floor(1000 * seeds[7] / total)),
+        # OP3_MAX_TRIES = trial.suggest_int("OP3_MAX_TRIES", 1, 100),
+        # OP3_LEN_MAX_COEF = trial.suggest_float("OP3_LEN_MAX_COEF", 0.01, 10),
+        # OP3_LEN_MIN = trial.suggest_int("OP3_LEN_MIN", 3, 100),
+        # FIRST_LOOPS = trial.suggest_int("FIRST_LOOPS", 1, 20),
+        # CLUSTER_THRESHOLD = trial.suggest_int("CLUSTER_THRESHOLD", 30, 200),
         # OP7_LEN_MAX = trial.suggest_int("OP7_LEN_MAX", 3, 50),
         # OP7_DIST_THRESHOLD = trial.suggest_int("OP7_DIST_THRESHOLD", 3, 50),
         # LENGTH_THRESHOLD = trial.suggest_int("LENGTH_THRESHOLD", 2, 50),

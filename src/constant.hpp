@@ -107,11 +107,27 @@ constexpr int OP7_DIST_THRESHOLD =
 #endif
     ;
 
+constexpr int FIRST_LOOPS =
+#ifdef PARAM_FIRST_LOOPS
+    PARAM_FIRST_LOOPS
+#else
+    1
+#endif
+    ;
+
+constexpr int CLUSTER_THRESHOLD =
+#ifdef PARAM_CLUSTER_THRESHOLD
+    PARAM_CLUSTER_THRESHOLD
+#else
+    100
+#endif
+    ;
+
 constexpr int OP1_P =
 #ifdef PARAM_OP1_P
     PARAM_OP1_P
 #else
-    240
+    100
 #endif
     ;
 
@@ -127,7 +143,7 @@ constexpr int OP3_P =
 #ifdef PARAM_OP3_P
     PARAM_OP3_P
 #else
-    60
+    31
 #endif
     ;
 
@@ -135,7 +151,7 @@ constexpr int OP4_P =
 #ifdef PARAM_OP4_P
     PARAM_OP4_P
 #else
-    0
+    1
 #endif
     ;
 
@@ -143,7 +159,7 @@ constexpr int OP5_P =
 #ifdef PARAM_OP5_P
     PARAM_OP5_P
 #else
-    7
+    12
 #endif
     ;
 
@@ -151,7 +167,7 @@ constexpr int OP6_P =
 #ifdef PARAM_OP6_P
     PARAM_OP6_P
 #else
-    29
+    55
 #endif
     ;
 
@@ -159,7 +175,7 @@ constexpr int OP7_P =
 #ifdef PARAM_OP7_P
     PARAM_OP7_P
 #else
-    647
+    800
 #endif
     ;
 
@@ -167,6 +183,6 @@ constexpr int OP8_P =
 #ifdef PARAM_OP8_P
     PARAM_OP8_P
 #else
-    17
+    1
 #endif
     ;
