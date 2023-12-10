@@ -790,8 +790,8 @@ optional<ModifiedState> op5(const State& s) {
     return nullopt;
 }
 
-State improve(State s) {
-    scheduler::Scheduler<1900> timer;
+State improve(State s, int ms) {
+    scheduler::Scheduler timer(ms);
     // output(s.seq, cell);
     while (timer.update()) {
         double progress = timer.progress / double(timer.limit);
@@ -905,7 +905,7 @@ void fix_unreachable(State& s) {
     }
 
     while (!unreached.empty()) {
-        cerr << "need to fix: " << unreached.size() << endl;
+        // cerr << "need to fix: " << unreached.size() << endl;
         xorshift::shuffle(unreached);
         for (auto v : unreached) {
             xorshift::shuffle(g[v]);
@@ -1036,7 +1036,7 @@ State build_first_state() {
     auto cluster = find_cluster();
 
     // 何回か回して最良のものを返す
-    scheduler::Scheduler<10> timer;
+    scheduler::Scheduler timer(10);
 
     while (timer.update()) {
         State s;
@@ -1088,21 +1088,24 @@ State build_first_state() {
 }
 
 int main() {
+    using namespace std::chrono;
+    high_resolution_clock::time_point bg = high_resolution_clock::now();
     cerr << fixed << setprecision(5);
     N = input(g, D, cell);
     init();
 
-    logger::push("N", int64_t(N));
+    // logger::push("N", int64_t(N));
 
     auto first = build_first_state();
     // auto first = sample();
-    auto ret = improve(first);
+    int64_t elapsed =
+        duration_cast<milliseconds>(high_resolution_clock::now() - bg).count();
+    auto ret = improve(first, 1950 - elapsed);
     fix_unreachable(ret);
     ret.sync_score();
 
     output(ret.seq, cell);
     logger::push("L", int64_t(ret.seq.size() - 1));
-
     logger::push("score", ret.score.score_with_penalty(1e10, 0));
     transiton_arm::add_log();
     logger::flush();

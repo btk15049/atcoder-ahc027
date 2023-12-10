@@ -1,6 +1,6 @@
 import math
 
-string = "OP2_P: 0, OP3_P: 171, OP4_P: 6, OP5_P: 71, OP6_P: 298, OP7_P: 3913, OP8_P: 10"
+string = "OP2_P: 0, OP3_P: 171, OP4_P: 6, OP5_P: 71, OP6_P: 298, OP7_P: 9000, OP8_P: 10"
 param = {
     key: int(value)
     for key, value in [x.split(": ") for x in string.split(", ")]

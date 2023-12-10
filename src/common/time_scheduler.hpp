@@ -2,7 +2,6 @@
 
 namespace scheduler {
     using namespace std::chrono;
-    template <int time_limit>
     struct Scheduler {
         high_resolution_clock::time_point bg;
         int64_t limit;
@@ -11,7 +10,7 @@ namespace scheduler {
         int64_t latest_interval  = 0;
         constexpr static int buf = 256;
         int not_updated;
-        Scheduler() {
+        Scheduler(int time_limit) {
             latest      = 0;
             bg          = high_resolution_clock::now();
             limit       = time_limit * 1e3;
